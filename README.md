@@ -2,8 +2,21 @@
 [![Backers on Open Collective](https://opencollective.com/redirectcenter/backers/badge.svg)](#backers)
 [![Sponsors on Open Collective](https://opencollective.com/redirectcenter/sponsors/badge.svg)](#sponsors)
 
-# redirect.center
-Redirect domains using DNS only.
+# Desvio
+
+A nova identidade do **redirect.center**. Redirecione domínios usando DNS, gere
+configurações com UTM e acompanhe os acessos dos redirecionamentos. Gratuito e
+open source.
+
+**Rodar localmente:** `deno task dev` → [localhost:3000](http://localhost:3000).
+
+**[Documentação](docs/README.md)** · [Guia de DNS e UTMs](docs/USAGE.md) ·
+[Desenvolvimento e publicação](docs/DEVELOPMENT.md) ·
+[Conteúdo multilíngue preservado](docs/LEGACY-CONTENT.md)
+
+Interface em PT, EN e ES; descrições do projeto preservadas em 12 idiomas.
+Analytics por redirecionamento com persistência local em Deno KV. A marca Desvio
+não altera o domínio técnico configurado em `FQDN`.
 
 ## Requirements
 
@@ -28,15 +41,15 @@ export ENTRY_IP=54.84.55.102
 export LISTEN_PORT=80
 ```
 
-| Variable | Default | Description |
-|---|---|---|
-| `FQDN` | `localhost` | Service domain (used to detect homepage vs redirect) |
-| `ENTRY_IP` | `127.0.0.1` | IP users must set in their A record |
-| `LISTEN_PORT` | `3000` | Server port |
-| `LISTEN_IP` | `0.0.0.0` | Server bind address |
-| `ENVIRONMENT` | `dev1` | Environment name |
-| `PROJECT_NAME` | `redirect.center` | Displayed in UI and meta tags |
-| `LOGGER_LEVEL` | `debug` | Log level |
+| Variable       | Default     | Description                                          |
+| -------------- | ----------- | ---------------------------------------------------- |
+| `FQDN`         | `localhost` | Service domain (used to detect homepage vs redirect) |
+| `ENTRY_IP`     | `127.0.0.1` | IP users must set in their A record                  |
+| `LISTEN_PORT`  | `3000`      | Server port                                          |
+| `LISTEN_IP`    | `0.0.0.0`   | Server bind address                                  |
+| `ENVIRONMENT`  | `dev1`      | Environment name                                     |
+| `PROJECT_NAME` | `Desvio`    | Displayed in UI and meta tags                        |
+| `LOGGER_LEVEL` | `debug`     | Log level                                            |
 
 ## How do I run in development?
 
@@ -54,8 +67,8 @@ deno task test
 
 ### Option 1: systemd (recommended)
 
-This runs the service in the background, auto-restarts on crash, and starts on boot.
-You can SSH in, start it, and disconnect without issues.
+This runs the service in the background, auto-restarts on crash, and starts on
+boot. You can SSH in, start it, and disconnect without issues.
 
 ```sh
 # 1. Copy the service file to systemd
@@ -132,25 +145,29 @@ Create a wildcard entry in your DNS:
 
 ## Contributors
 
-This project exists thanks to all the people who contribute. [[Contribute](CONTRIBUTING.md)].
+This project exists thanks to all the people who contribute.
+[[Contribute](CONTRIBUTING.md)].
 
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
 <!-- prettier-ignore -->
-| [<img src="https://avatars0.githubusercontent.com/u/302277?v=4" width="100px;"/><br /><sub><b>Udlei Nati</b></sub>](https://github.com/udleinati)<br />[💻](https://github.com/udleinati/redirect.center/commits?author=udleinati "Code") [📖](https://github.com/udleinati/redirect.center/commits?author=udleinati "Documentation") [🤔](#ideas-udleinati "Ideas, Planning, & Feedback") [🚇](#infra-udleinati "Infrastructure (Hosting, Build-Tools, etc)") |
-| :---: |
-<!-- ALL-CONTRIBUTORS-LIST:END -->
 
+| [<img src="https://avatars0.githubusercontent.com/u/302277?v=4" width="100px;"/><br /><sub><b>Udlei Nati</b></sub>](https://github.com/udleinati)<br />[💻](https://github.com/udleinati/redirect.center/commits?author=udleinati "Code") [📖](https://github.com/udleinati/redirect.center/commits?author=udleinati "Documentation") [🤔](#ideas-udleinati "Ideas, Planning, & Feedback") [🚇](#infra-udleinati "Infrastructure (Hosting, Build-Tools, etc)") |
+| :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
 
 ## Backers
 
-Thank you to all our backers! 🙏 [[Become a backer](https://opencollective.com/redirectcenter#backer)]
+Thank you to all our backers! 🙏
+[[Become a backer](https://opencollective.com/redirectcenter#backer)]
 
 <a href="https://opencollective.com/redirectcenter#backers" target="_blank"><img src="https://opencollective.com/redirectcenter/backers.svg?width=890"></a>
 
-
 ## Sponsors
 
-Support this project by becoming a sponsor. Your logo will show up here with a link to your website. [[Become a sponsor](https://opencollective.com/redirectcenter#sponsor)]
+Support this project by becoming a sponsor. Your logo will show up here with a
+link to your website.
+[[Become a sponsor](https://opencollective.com/redirectcenter#sponsor)]
 
 <a href="https://opencollective.com/redirectcenter/sponsor/0/website" target="_blank"><img src="https://opencollective.com/redirectcenter/sponsor/0/avatar.svg"></a>
 <a href="https://opencollective.com/redirectcenter/sponsor/1/website" target="_blank"><img src="https://opencollective.com/redirectcenter/sponsor/1/avatar.svg"></a>

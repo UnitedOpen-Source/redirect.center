@@ -17,3 +17,9 @@
 
 # Deno
 .deno/
+
+# Local analytics database
+.data/
+
+# Browser verification artifacts
+.playwright-mcp/

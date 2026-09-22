@@ -1,817 +1,268 @@
 <!DOCTYPE html>
-<html lang="en">
-
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{ app.projectName }} - Free DNS-Based Domain Redirect Service</title>
-  <meta name="description" content="Redirect any domain using only a DNS CNAME record. Free, open-source URL redirect service — no server, no hosting, no code. Supports HTTP 301, 302, 307, 308, HTTPS, path forwarding and query strings." />
-  <meta name="keywords" content="dns redirect, cname redirect, domain redirect, url redirect, free redirect service, domain forwarding, dns url forwarding, cname record redirect, 301 redirect dns, redirecionamento dns, redirecionar dominio, redirecionamento de url" />
-  <meta name="author" content="Udlei Nati" />
-  <meta name="robots" content="index, follow" />
-  <meta name="theme-color" content="#2563eb" />
-  <link rel="canonical" href="https://{{ app.fqdn }}/" />
-  <link rel="alternate" hreflang="en" href="https://{{ app.fqdn }}/" />
-  <link rel="alternate" hreflang="pt" href="https://{{ app.fqdn }}/" />
-  <link rel="alternate" hreflang="x-default" href="https://{{ app.fqdn }}/" />
-
-  <!-- Open Graph -->
-  <meta property="og:title" content="{{ app.projectName }} - Free DNS-Based Domain Redirect Service" />
-  <meta property="og:description" content="Redirect any domain using only a DNS CNAME record. Free, open-source — no server, no hosting, no code." />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://{{ app.fqdn }}/" />
-  <meta property="og:site_name" content="{{ app.projectName }}" />
-  <meta property="og:locale" content="en_US" />
-  <meta property="og:locale:alternate" content="pt_BR" />
-
-  <!-- Twitter Card -->
-  <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="{{ app.projectName }} - Free DNS-Based Domain Redirect Service" />
-  <meta name="twitter:description" content="Redirect any domain using only a DNS CNAME record. Free, open-source — no server, no hosting, no code." />
-
-  <!-- JSON-LD Structured Data -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "WebApplication",
-    "name": "{{ app.projectName }}",
-    "url": "https://{{ app.fqdn }}/",
-    "description": "Free DNS-based domain redirect service. Redirect URLs, domains, and subdomains using only CNAME records.",
-    "applicationCategory": "DeveloperApplication",
-    "operatingSystem": "Any",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
-    },
-    "author": {
-      "@type": "Person",
-      "name": "Udlei Nati"
-    },
-    "license": "https://opensource.org/licenses/MIT",
-    "isAccessibleForFree": true,
-    "inLanguage": ["en", "pt", "es", "de", "fr", "it", "ja", "ru", "ko", "zh", "ar", "hi"]
-  }
-  </script>
-
-  <link rel="icon" href="data:," />
-  <script src="https://unpkg.com/base32.js@0.1.0/dist/base32.min.js"></script>
-  <style>
-    :root {
-      --primary: #2563eb;
-      --primary-dark: #1d4ed8;
-      --bg: #f8fafc;
-      --surface: #ffffff;
-      --text: #1e293b;
-      --text-secondary: #64748b;
-      --border: #e2e8f0;
-      --code-bg: #f1f5f9;
-      --accent: #0ea5e9;
-      --success: #10b981;
-      --radius: 12px;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
-    }
-
-    /* i18n: hide inactive lang */
-    body[data-lang="en"] .pt { display: none !important; }
-    body[data-lang="pt"] .en { display: none !important; }
-
-    .container {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 0 24px;
-    }
-
-    /* Lang switcher */
-    .lang-switch {
-      position: absolute;
-      top: 12px;
-      right: 24px;
-      display: flex;
-      gap: 6px;
-    }
-
-    .lang-switch button {
-      background: rgba(255,255,255,0.2);
-      border: 1px solid rgba(255,255,255,0.3);
-      color: #fff;
-      border-radius: 4px;
-      padding: 3px 10px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-
-    .lang-switch button:hover { background: rgba(255,255,255,0.3); }
-    .lang-switch button.active { background: rgba(255,255,255,0.95); color: var(--primary); }
-
-    /* Hero */
-    .hero {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-      color: #fff;
-      padding: 32px 0 28px;
-      text-align: center;
-      position: relative;
-    }
-
-    .hero h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; }
-    .hero .tagline { font-size: 1rem; opacity: 0.92; margin-bottom: 16px; }
-
-    /* CTA Button */
-    .btn-cta {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: linear-gradient(135deg, var(--primary), var(--accent));
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      padding: 14px 32px;
-      font-size: 1.05rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: transform 0.15s, box-shadow 0.15s;
-      box-shadow: 0 4px 16px rgba(37,99,235,0.3);
-      text-decoration: none;
-    }
-
-    .btn-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(37,99,235,0.4); }
-    .btn-cta:active { transform: translateY(0); }
-    .btn-cta .icon { font-size: 1.2rem; }
-
-    /* Sections */
-    .section { padding: 40px 0; }
-    .section-title { font-size: 1.4rem; font-weight: 700; text-align: center; margin-bottom: 8px; }
-    .section-subtitle { text-align: center; color: var(--text-secondary); max-width: 640px; margin: 0 auto 28px; font-size: 0.92rem; }
-
-    /* Steps */
-    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-
-    .step {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px 16px;
-      text-align: center;
-      transition: box-shadow 0.2s;
-    }
-
-    .step:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
-
-    .step-icon {
-      width: 40px; height: 40px; border-radius: 50%;
-      background: linear-gradient(135deg, var(--primary), var(--accent));
-      color: #fff; display: inline-flex; align-items: center; justify-content: center;
-      font-size: 1.1rem; font-weight: 700; margin-bottom: 10px;
-    }
-
-    .step h3 { font-size: 1rem; margin-bottom: 4px; }
-    .step p { font-size: 0.85rem; color: var(--text-secondary); }
-
-    /* Examples */
-    .examples { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-
-    .example-card {
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: var(--radius); margin-bottom: 10px; overflow: hidden;
-    }
-
-    .example-header {
-      padding: 12px 16px; cursor: pointer; display: flex; align-items: center;
-      gap: 10px; font-weight: 600; user-select: none; transition: background 0.15s;
-    }
-
-    .example-header:hover { background: var(--code-bg); }
-    .example-header .arrow { transition: transform 0.2s; font-size: 0.7rem; color: var(--text-secondary); flex-shrink: 0; }
-    .example-card.open .example-header .arrow { transform: rotate(90deg); }
-    .example-header .example-summary { flex: 1; font-size: 0.9rem; }
-    .example-header code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: var(--primary); }
-    .example-body { display: none; padding: 16px 20px; border-top: 1px solid var(--border); background: #fff; }
-    .example-card.open .example-body { display: block; }
-
-    .dns-record {
-      background: var(--code-bg); border-radius: 8px; padding: 12px 16px;
-      font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
-      font-size: 0.82rem; margin: 8px 0; overflow-x: auto;
-    }
-
-    .dns-record .row { display: flex; gap: 12px; padding: 3px 0; white-space: nowrap; }
-    .dns-record .label { color: var(--text-secondary); min-width: 80px; flex-shrink: 0; }
-    .dns-record .value { font-weight: 600; color: var(--text); }
-
-    .tip {
-      display: flex; align-items: flex-start; gap: 8px; margin-top: 10px;
-      padding: 8px 12px; background: #eff6ff; border-radius: 8px;
-      font-size: 0.84rem; color: var(--primary-dark);
-    }
-
-    .tip-icon { flex-shrink: 0; font-size: 0.9rem; }
-
-    /* Modal */
-    .modal-overlay {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-      backdrop-filter: blur(4px); z-index: 1000; align-items: center;
-      justify-content: center; padding: 24px;
-    }
-
-    .modal-overlay.open { display: flex; }
-
-    .modal {
-      background: var(--surface); border-radius: 16px; padding: 32px;
-      max-width: 560px; width: 100%; position: relative;
-      box-shadow: 0 24px 64px rgba(0,0,0,0.2); animation: modalIn 0.2s ease-out;
-    }
-
-    @keyframes modalIn {
-      from { opacity: 0; transform: scale(0.95) translateY(8px); }
-      to { opacity: 1; transform: scale(1) translateY(0); }
-    }
-
-    .modal-close { position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 1.5rem; color: var(--text-secondary); cursor: pointer; line-height: 1; padding: 4px; }
-    .modal-close:hover { color: var(--text); }
-    .modal h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 4px; }
-    .modal .modal-desc { color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 20px; }
-    .modal label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 5px; color: var(--text); }
-    .modal input { width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.92rem; font-family: inherit; outline: none; transition: border 0.2s; }
-    .modal input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-    .modal .converter-arrow { text-align: center; padding: 10px 0; color: var(--text-secondary); font-size: 1.2rem; }
-    .modal .input-group { position: relative; }
-    .modal .input-group input { padding-right: 80px; font-family: "SF Mono", "Fira Code", monospace; font-size: 0.82rem; }
-
-    .btn-copy { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 7px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
-    .btn-copy:hover { background: var(--primary-dark); }
-    .btn-copy.copied { background: var(--success); }
-
-    .modal-tip {
-      margin-top: 16px; padding: 10px 14px; background: #fef9c3;
-      border: 1px solid #fde047; border-radius: 8px; font-size: 0.82rem;
-      color: #854d0e; line-height: 1.5;
-    }
-
-    .modal-tip code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 3px; font-size: 0.8rem; }
-
-    /* Parameters ref */
-    .params-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-    .params-table th { text-align: left; padding: 8px 12px; background: var(--code-bg); font-weight: 600; border-bottom: 2px solid var(--border); }
-    .params-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
-    .params-table code { background: var(--code-bg); padding: 2px 5px; border-radius: 4px; font-size: 0.78rem; white-space: nowrap; }
-
-    /* Footer */
-    footer { background: var(--text); color: #cbd5e1; padding: 36px 0 24px; }
-    footer a { color: var(--accent); text-decoration: none; }
-    footer a:hover { text-decoration: underline; }
-    .footer-main { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin-bottom: 24px; }
-    .footer-col { flex: 1; min-width: 200px; }
-    .footer-col h4 { color: #fff; margin-bottom: 8px; font-size: 0.95rem; }
-    .footer-col p, .footer-col li { font-size: 0.84rem; line-height: 1.6; }
-    .footer-col ul { list-style: none; }
-    .footer-seo { border-top: 1px solid rgba(255,255,255,0.08); padding-top: 20px; }
-    .footer-seo-block { margin-bottom: 12px; }
-    .footer-seo-block p { font-size: 0.72rem; color: #64748b; line-height: 1.5; }
-    .footer-bottom { border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px; margin-top: 16px; text-align: center; font-size: 0.78rem; color: #64748b; }
-    .footer-bottom a.muted { color: inherit; text-decoration: none; }
-    .footer-bottom a.muted:hover { text-decoration: underline; }
-
-    @media (max-width: 640px) {
-      .hero h1 { font-size: 1.6rem; }
-      .hero .tagline { font-size: 0.9rem; }
-      .steps { grid-template-columns: 1fr; }
-      .modal { padding: 24px 20px; margin: 16px; }
-      .dns-record .row { flex-direction: column; gap: 2px; }
-      .lang-switch { position: static; justify-content: center; margin-bottom: 12px; }
-    }
-  </style>
-</head>
-
-<body data-lang="en">
-
-  <!-- Hero -->
-  <section class="hero">
-    <div class="lang-switch">
-      <button onclick="setLang('en')" id="lang-en" class="active">EN</button>
-      <button onclick="setLang('pt')" id="lang-pt">PT</button>
-    </div>
-    <div class="container">
-      <h1>{{ app.projectName }}</h1>
-      <p class="tagline">
-        <span class="en">Redirect any domain using only a DNS record. No server, no hosting, no code.</span>
-        <span class="pt">Redirecione qualquer dom&iacute;nio usando apenas um registro DNS. Sem servidor, sem hospedagem, sem c&oacute;digo.</span>
-      </p>
-    </div>
-  </section>
-
-  <!-- How it works -->
-  <section class="section">
-    <div class="container">
-      <h2 class="section-title">
-        <span class="en">How it works</span>
-        <span class="pt">Como funciona</span>
-      </h2>
-      <p class="section-subtitle">
-        <span class="en">Three steps. No account, no sign-up &mdash; completely free and open source.</span>
-        <span class="pt">Tr&ecirc;s passos. Sem cadastro, sem conta &mdash; totalmente gratuito e open source.</span>
-      </p>
-      <div class="steps">
-        <div class="step">
-          <div class="step-icon">1</div>
-          <h3>
-            <span class="en">Point your domain</span>
-            <span class="pt">Aponte seu dom&iacute;nio</span>
-          </h3>
-          <p>
-            <span class="en">Create an <strong>A record</strong> pointing to <code>{{ app.entryIp }}</code></span>
-            <span class="pt">Crie um <strong>registro A</strong> apontando para <code>{{ app.entryIp }}</code></span>
-          </p>
-        </div>
-        <div class="step">
-          <div class="step-icon">2</div>
-          <h3>
-            <span class="en">Set the destination</span>
-            <span class="pt">Defina o destino</span>
-          </h3>
-          <p>
-            <span class="en">Create a <strong>CNAME</strong> like <code>dest.com.{{ app.fqdn }}</code></span>
-            <span class="pt">Crie um <strong>CNAME</strong> como <code>dest.com.{{ app.fqdn }}</code></span>
-          </p>
-        </div>
-        <div class="step">
-          <div class="step-icon">3</div>
-          <h3>
-            <span class="en">Done!</span>
-            <span class="pt">Pronto!</span>
-          </h3>
-          <p>
-            <span class="en">Visitors get a <strong>301 redirect</strong> automatically.</span>
-            <span class="pt">Visitantes recebem um <strong>redirect 301</strong> automaticamente.</span>
-          </p>
-        </div>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ app.projectName }} — Seu domínio, na direção certa.</title>
+    <meta name="description"
+      content="Redirecione domínios usando DNS. Gere registros CNAME, adicione parâmetros UTM e acompanhe o uso do serviço. Gratuito e open source.">
+    <meta name="theme-color" content="#f8f9fc">
+    <meta property="og:title"
+      content="{{ app.projectName }} — Seu domínio, na direção certa.">
+    <meta property="og:description"
+      content="Do seu domínio para qualquer destino. Configure o DNS, adicione UTMs e pronto.">
+    <meta property="og:type" content="website">
+    <link rel="canonical" href="https://{{ app.fqdn }}/">
+    <link rel="icon" type="image/svg+xml" href="/public/favicon.svg">
+    <link rel="stylesheet" href="/public/style.css">
+    <script type="module" src="/public/app.js"></script>
+  </head>
+  <body data-fqdn="{{ app.fqdn }}" data-entry-ip="{{ app.entryIp }}">
+    <svg class="icon-library" xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true">
+      <defs>
+        <symbol id="i-arrow" viewBox="0 0 24 24">
+          <path d="M4 12h15m-6-6 6 6-6 6" />
+        </symbol>
+        <symbol id="i-turn" viewBox="0 0 24 24">
+          <path d="M5 19v-6a6 6 0 0 1 6-6h8m-5-5 5 5-5 5" />
+        </symbol>
+        <symbol id="i-grid" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="3" width="7" height="7" rx="1.5" />
+          <rect x="3" y="14" width="7" height="7" rx="1.5" />
+          <rect x="14" y="14" width="7" height="7" rx="1.5" />
+        </symbol>
+        <symbol id="i-chart" viewBox="0 0 24 24">
+          <path d="M4 3v17h17M9 15v-4m5 4V7m5 8V4" />
+        </symbol>
+        <symbol id="i-book" viewBox="0 0 24 24">
+          <path
+            d="M12 5v16M3 3c4 0 6 0 9 2 3-2 5-2 9-2v15c-4 0-6 0-9 3-3-3-5-3-9-3Z" />
+        </symbol>
+        <symbol id="i-globe" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" />
+          <ellipse cx="12" cy="12" rx="4" ry="9" />
+          <path d="M3 12h18" />
+        </symbol>
+        <symbol id="i-link" viewBox="0 0 24 24">
+          <path
+            d="m10 14 4-4m-6 5-1 1a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m2 3 1-1a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0"
+            transform="translate(1 1)" />
+        </symbol>
+        <symbol id="i-copy" viewBox="0 0 24 24">
+          <rect x="8" y="8" width="12" height="12" rx="2" />
+          <path d="M15 8V4H4v11h4" />
+        </symbol>
+        <symbol id="i-check" viewBox="0 0 24 24">
+          <path d="m5 12 4 4L19 6" />
+        </symbol>
+        <symbol id="i-code" viewBox="0 0 24 24">
+          <path d="m7 6-6 6 6 6m10-12 6 6-6 6m-4-15-2 18" />
+        </symbol>
+        <symbol id="i-external" viewBox="0 0 24 24">
+          <path d="M14 3h7v7m0-7L10 14m-1-9H4v15h15v-5" />
+        </symbol>
+        <symbol id="i-tag" viewBox="0 0 24 24">
+          <path d="M3 3h9l9 9-9 9-9-9Z" />
+          <circle cx="8" cy="8" r="1" />
+        </symbol>
+        <symbol id="i-info" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 11v6m0-10v1" />
+        </symbol>
+      </defs>
+    </svg>
+    <a class="skip-link" href="#main">Pular para o conteúdo</a>
+    <aside class="sidebar">
+      <a class="brand" href="/"
+        aria-label="{{ app.projectName }}, início"><span class="brand-mark"><svg><use href="#i-turn"/></svg></span><span>{{ app.projectName }}<span class="brand-dot">.</span></span></a>
+      <div class="workspace-label">WORKSPACE <span>GRÁTIS</span></div>
+      <nav aria-label="Navegação principal">
+      <a href="#overview" class="nav-link active" data-page="overview"><svg><use href="#i-grid"/></svg>Visão geral</a>
+      <a href="#builder" class="nav-link" data-page="builder"><svg><use href="#i-turn"/></svg><span class="nav-text">Criar redirecionamento</span></a>
+      <a href="#analytics" class="nav-link" data-page="analytics"><svg><use href="#i-chart"/></svg>Analytics <span class="nav-dot"></span></a>
+      <a href="/report" class="nav-link" data-page="report"><svg><use href="#i-info"/></svg>Denunciar URL</a><span class="nav-divider"></span>
+      <a href="#docs" class="nav-link" data-page="docs"><svg><use href="#i-book"/></svg>Como funciona</a>
+      <a href="https://github.com/udleinati/redirect.center" target="_blank" rel="noopener" class="nav-link"><svg><use href="#i-code"/></svg>Código-fonte<svg class="external"><use href="#i-external"/></svg></a>
+    </nav>
+      <div class="sidebar-bottom">
+        <div
+          class="open-card"><span class="open-icon">✳</span><strong>Pequeno no setup.<br>Grande nas possibilidades.</strong><p>Feito para a web aberta.<br>Gratuito e open source.</p><a href="https://github.com/udleinati/redirect.center" target="_blank" rel="noopener">Conheça o projeto <span>↗</span></a></div>
+        <div
+          class="service-status"><span class="status-dot"></span><span id="service-status">Conectando ao serviço</span><span class="version">v2.0</span></div>
       </div>
-    </div>
-  </section>
-
-  <!-- How to use -->
-  <section class="section examples">
-    <div class="container">
-      <h2 class="section-title">
-        <span class="en">How to use</span>
-        <span class="pt">Como usar</span>
-      </h2>
-      <p class="section-subtitle">
-        <span class="en">Click each example to see the DNS records you need.</span>
-        <span class="pt">Clique em cada exemplo para ver os registros DNS necess&aacute;rios.</span>
-      </p>
-
-      <div class="example-card open">
-        <div class="example-header" onclick="toggleExample(this)">
-          <span class="arrow">&#9654;</span>
-          <span class="example-summary">
-            <span class="en">Redirect</span><span class="pt">Redirecionar</span>
-            <code>my-domain.com</code> &rarr; <code>www.my-domain.com</code>
-          </span>
-        </div>
-        <div class="example-body">
-          <p>
-            <span class="en">Redirect your bare/root domain to the www version:</span>
-            <span class="pt">Redirecione seu dom&iacute;nio raiz para a vers&atilde;o www:</span>
-          </p>
-          <div class="dns-record">
-            <div class="row">
-              <span class="label">Host:</span>
-              <span class="value">&lt;empty&gt; (or @)</span>
-              <span class="label">Type:</span>
-              <span class="value">A</span>
-              <span class="label">Value:</span>
-              <span class="value">{{ app.entryIp }}</span>
-            </div>
-            <div class="row">
-              <span class="label">Host:</span>
-              <span class="value">redirect</span>
-              <span class="label">Type:</span>
-              <span class="value">CNAME</span>
-              <span class="label">Value:</span>
-              <span class="value">www.my-domain.com.{{ app.fqdn }}</span>
+    </aside>
+    <div class="app-shell">
+      <header class="topbar">
+        <div
+          class="breadcrumb">Workspace <span>/</span> <strong id="page-title">Visão geral</strong></div>
+        <div
+          class="topbar-right"><label class="language-picker"><svg><use href="#i-globe"/></svg><select id="language" aria-label="Idioma"><option value="pt">PT</option><option value="en">EN</option><option value="es">ES</option></select></label><span class="dns-badge"><span class="status-dot"></span>DNS-powered</span><a href="#docs" class="help-link">Precisa de ajuda? <svg><use href="#i-external"/></svg></a><span class="avatar" title="Workspace público">D</span></div>
+      </header>
+      <main id="main">
+        <section id="overview" class="view-section">
+          <div
+            class="intro-heading"><div><div class="eyebrow">MENOS CONFIGURAÇÃO. MAIS CONEXÃO.</div><h1>Seu domínio, na direção certa<span>.</span></h1><p>Conecte qualquer domínio ao seu próximo destino. O DNS faz o caminho.</p></div><a class="quiet-link" href="#docs">Como funciona <svg><use href="#i-arrow"/></svg></a></div>
+          <div class="hero-card">
+            <div
+              class="hero-copy"><span class="pill"><span></span> UM NOVO CAMINHO PARA SEUS LINKS</span><h2>Um domínio.<br>Infinitas possibilidades.</h2><p>Do seu endereço à sua loja, portfólio ou campanha.<br>Redirecione com DNS, adicione UTMs e siga em frente.</p><a class="button primary" href="#builder">Criar redirecionamento <svg><use href="#i-arrow"/></svg></a><div class="hero-benefits"><span>✓ Sem cadastro</span><span>✓ Sem código</span><span>✓ Open source</span></div></div>
+            <div class="hero-art"
+              aria-label="Um domínio conectado a diferentes destinos">
+              <div class="orbit orbit-one"></div>
+              <div class="orbit orbit-two"></div>
+              <div class="art-dot dot-one"></div>
+              <div class="art-dot dot-two"></div>
+              <div
+                class="route-label label-dns">CNAME RECORD <span>↗</span></div>
+              <div
+                class="domain-node"><span class="node-icon"><svg><use href="#i-globe"/></svg></span><div><small>SEU PONTO DE PARTIDA</small><strong>seudominio.com</strong></div><span class="node-check">✓</span></div>
+              <div class="route-line"></div>
+              <div class="route-hub">
+                <svg>
+                  <use href="#i-turn" />
+                </svg>
+              </div>
+              <div class="route-label label-redirect">302 REDIRECT</div>
+              <div
+                class="destination-node"><span class="destination-icon"><svg><use href="#i-link"/></svg></span><div><small>SEU PRÓXIMO DESTINO</small><strong>Qualquer lugar na web</strong></div><svg><use href="#i-external"/></svg></div>
+              <div
+                class="art-caption"><span class="status-dot"></span>Uma configuração. Caminho resolvido.</div>
             </div>
           </div>
-          <div class="tip">
-            <span class="tip-icon">&#128161;</span>
-            <span>
-              <span class="en">Add <code>.opts-https</code> to force HTTPS: <code>www.my-domain.com.opts-https.{{ app.fqdn }}</code></span>
-              <span class="pt">Adicione <code>.opts-https</code> para for&ccedil;ar HTTPS: <code>www.my-domain.com.opts-https.{{ app.fqdn }}</code></span>
-            </span>
+          <div
+            class="section-heading compact"><h2>Acessos por redirecionamento</h2><span class="period-label">Últimos 7 dias <span>·</span> UTC</span></div>
+          <form class="analytics-filter"
+            data-analytics-form><label for="analytics-domain-overview">Domínio de origem</label><div class="analytics-filter-controls"><input id="analytics-domain-overview" data-analytics-domain list="saved-domains" placeholder="go.example.com" autocomplete="off" spellcheck="false" required><button type="submit" class="button secondary">Consultar acessos <svg><use href="#i-arrow"/></svg></button></div><small data-selected-source>Selecione um redirecionamento para ver seus acessos.</small></form>
+          <div class="metric-grid">
+            <article
+              class="metric-card"><div class="metric-top"><span>Redirecionamentos</span><svg class="orange"><use href="#i-turn"/></svg></div><strong data-metric="redirect">—</strong><small>Respostas entregues pelo servidor</small><div class="mini-bars" data-spark="redirect" aria-hidden="true"></div></article>
+            <article
+              class="metric-card"><div class="metric-top"><span>Permanentes</span><svg class="blue"><use href="#i-globe"/></svg></div><strong data-metric="permanent">—</strong><small>Respostas HTTP 301 e 308</small><div class="mini-bars blue-bars" data-spark="permanent" aria-hidden="true"></div></article>
+            <article
+              class="metric-card"><div class="metric-top"><span>Temporários</span><svg class="purple"><use href="#i-code"/></svg></div><strong data-metric="temporary">—</strong><small>Respostas HTTP 302 e 307</small><div class="mini-bars purple-bars" data-spark="temporary" aria-hidden="true"></div></article>
           </div>
-        </div>
-      </div>
+        </section>
 
-      <div class="example-card">
-        <div class="example-header" onclick="toggleExample(this)">
-          <span class="arrow">&#9654;</span>
-          <span class="example-summary">
-            <span class="en">Redirect</span><span class="pt">Redirecionar</span>
-            <code>www.my-domain.com</code> &rarr; <code>www.other-domain.com</code>
-          </span>
-        </div>
-        <div class="example-body">
-          <p>
-            <span class="en">Redirect a subdomain to a completely different domain:</span>
-            <span class="pt">Redirecione um subdom&iacute;nio para um dom&iacute;nio completamente diferente:</span>
-          </p>
-          <div class="dns-record">
-            <div class="row">
-              <span class="label">Host:</span>
-              <span class="value">www</span>
-              <span class="label">Type:</span>
-              <span class="value">CNAME</span>
-              <span class="label">Value:</span>
-              <span class="value">www.other-domain.com.{{ app.fqdn }}</span>
+        <section id="builder" class="view-section builder-section">
+          <div
+            class="section-heading"><div><h2>Qual é o próximo destino?</h2><p>Monte seu redirecionamento. A gente cuida da parte complicada.</p></div><span class="step-badge">01 <span>/</span> CONFIGURAR</span></div>
+          <div class="builder-grid">
+            <div class="builder-card">
+              <div
+                class="card-tabs"><span class="selected"><svg><use href="#i-turn"/></svg>Redirecionamento</span><span class="tab-caption">DNS, do jeito simples</span></div>
+              <form id="redirect-form" novalidate>
+                <div
+                  class="field"><label for="source">Domínio de origem <span>De onde você vem</span></label><div class="input-icon"><svg><use href="#i-globe"/></svg><input id="source" name="source" placeholder="seudominio.com" autocomplete="off" required spellcheck="false"></div></div>
+                <div
+                  class="field"><label for="destination">URL de destino <span>Para onde você vai</span></label><div class="input-icon"><svg><use href="#i-link"/></svg><input type="url" id="destination" name="destination" placeholder="https://seusite.com/uma-nova-ideia" autocomplete="url" required spellcheck="false"></div></div>
+                <div class="field-pair">
+                  <div
+                    class="field"><label for="status">Tipo de redirecionamento</label><select id="status" name="status"><option value="302">302 · Temporário</option><option value="301">301 · Permanente</option><option value="307">307 · Temporário, mantém método</option><option value="308">308 · Permanente, mantém método</option></select></div>
+                  <div
+                    class="preserve-field"><label class="toggle-label" for="preserve"><input type="checkbox" id="preserve" role="switch"><span class="switch"></span><span>Manter caminho e parâmetros<small>Encaminha a URL de origem</small></span></label></div>
+                </div>
+                <details class="utm-panel" id="utm-panel">
+                  <summary><span><svg><use href="#i-tag"/></svg>Parâmetros UTM <span class="subtle-badge">OPCIONAL</span></span><span class="expand-plus">+</span></summary>
+                  <div
+                    class="utm-content"><p>Identifique sua campanha no analytics do site de destino.</p><div class="utm-grid"><div class="field"><label for="utm-source">Origem <code>utm_source</code></label><input id="utm-source" placeholder="instagram" spellcheck="false"></div><div class="field"><label for="utm-medium">Mídia <code>utm_medium</code></label><input id="utm-medium" placeholder="social" spellcheck="false"></div><div class="field"><label for="utm-campaign">Campanha <code>utm_campaign</code></label><input id="utm-campaign" placeholder="lancamento" spellcheck="false"></div><div class="field"><label for="utm-content">Conteúdo <code>utm_content</code></label><input id="utm-content" placeholder="bio" spellcheck="false"></div><div class="field"><label for="utm-term">Termo <code>utm_term</code></label><input id="utm-term" placeholder="palavra-chave" spellcheck="false"></div></div><small>O DNS tem limite de tamanho. Prefira valores curtos.</small></div>
+                </details>
+                <p id="form-error" class="form-error" role="alert" hidden></p>
+                <div
+                  class="form-footer"><span><svg><use href="#i-check"/></svg>Gratuito. Sem conta.</span><button type="submit" class="button primary">Gerar configuração <svg><use href="#i-arrow"/></svg></button></div>
+              </form>
             </div>
+            <aside class="preview-card">
+              <div
+                class="preview-title"><span class="eyebrow">UMA PRÉVIA DO CAMINHO</span><span class="live-indicator">AO VIVO</span></div>
+              <div class="journey">
+                <div
+                  class="journey-node"><span class="journey-icon"><svg><use href="#i-globe"/></svg></span><div><small>ORIGEM</small><strong id="preview-source">seudominio.com</strong></div></div>
+                <div
+                  class="journey-connector"><span id="preview-status">302 · Temporário</span></div>
+                <div
+                  class="journey-node"><span class="journey-icon orange-icon"><svg><use href="#i-turn"/></svg></span><div><small>DESTINO</small><strong id="preview-destination">Seu próximo destino</strong></div></div>
+              </div>
+              <div class="preview-note">
+                <svg>
+                  <use href="#i-info" />
+                </svg>
+                <p>Você configura os registros no seu provedor de DNS. O <strong>{{ app.projectName }}</strong> recebe o acesso e leva o visitante ao destino.</p>
+              </div>
+              <div
+                class="preview-bottom"><span>Seu domínio. Suas regras.</span><svg><use href="#i-turn"/></svg></div>
+            </aside>
           </div>
-          <div class="tip">
-            <span class="tip-icon">&#128161;</span>
-            <span>
-              <span class="en">Only one DNS record needed for subdomain redirects!</span>
-              <span class="pt">Apenas um registro DNS necess&aacute;rio para redirecionamento de subdom&iacute;nios!</span>
-            </span>
-          </div>
-        </div>
-      </div>
+          <section id="result" class="result-card" hidden
+            aria-labelledby="result-heading"><div class="section-heading"><div><span class="eyebrow">02 / CONECTAR</span><h2 id="result-heading" tabindex="-1">Seu caminho está pronto.</h2><p>Adicione estes dois registros no provedor DNS do domínio de origem.</p></div><button class="button secondary" id="copy-dns" type="button"><svg><use href="#i-copy"/></svg>Copiar registros</button></div><div class="table-scroll"><table><thead><tr><th>Tipo</th><th>Nome completo</th><th>Valor</th><th>TTL</th></tr></thead><tbody><tr><td><span class="record-type">A</span></td><td><code id="record-source"></code></td><td><code>{{ app.entryIp }}</code></td><td>Auto</td></tr><tr><td><span class="record-type">CNAME</span></td><td><code id="record-name"></code></td><td><code id="record-cname"></code></td><td>Auto</td></tr></tbody></table></div><a href="#analytics" class="result-analytics-link" id="view-result-analytics">Ver acessos deste redirecionamento →</a><div class="result-url"><div><small>URL FINAL · COM UTMs, SE INFORMADAS</small><code id="final-url"></code></div><button class="icon-button" id="copy-url" aria-label="Copiar URL final"><svg><use href="#i-copy"/></svg></button></div><p class="setup-note">Use registros sem proxy. Se o provedor acrescenta a zona automaticamente, informe apenas o nome relativo. Evite registros A, AAAA ou CNAME conflitantes. A propagação depende do TTL. HTTPS na origem exige um proxy com certificado; HTTPS no destino é independente.</p><p id="local-warning" class="local-warning" hidden>Ambiente local: localhost e 127.0.0.1 servem para testes. Configure FQDN e ENTRY_IP públicos antes de usar estes registros na internet.</p></section>
+        </section>
 
-      <div class="example-card">
-        <div class="example-header" onclick="toggleExample(this)">
-          <span class="arrow">&#9654;</span>
-          <span class="example-summary">
-            <span class="en">Redirect preserving the path:</span>
-            <span class="pt">Redirecionar preservando o caminho:</span>
-            <code>/page</code> &rarr; <code>/page</code>
-          </span>
-        </div>
-        <div class="example-body">
-          <p>
-            <span class="en">Keep the original URL path and query string when redirecting:</span>
-            <span class="pt">Mantenha o caminho e a query string originais ao redirecionar:</span>
-          </p>
-          <div class="dns-record">
-            <div class="row">
-              <span class="label">Host:</span>
-              <span class="value">www</span>
-              <span class="label">Type:</span>
-              <span class="value">CNAME</span>
-              <span class="label">Value:</span>
-              <span class="value">www.other-domain.com.opts-uri.{{ app.fqdn }}</span>
-            </div>
+        <section id="analytics" class="view-section analytics-section" hidden>
+          <div
+            class="section-heading"><div><span class="eyebrow">CADA CAMINHO CONTA</span><h1>Analytics<span>.</span></h1><p>Os acessos de cada redirecionamento, sem cookies ou identificação de visitantes.</p></div><button class="button secondary" id="refresh-analytics"><svg><use href="#i-chart"/></svg>Atualizar</button></div>
+          <form class="analytics-filter"
+            data-analytics-form><label for="analytics-domain">Domínio de origem</label><div class="analytics-filter-controls"><input id="analytics-domain" data-analytics-domain list="saved-domains" placeholder="go.example.com" autocomplete="off" spellcheck="false" required><button type="submit" class="button primary">Consultar acessos <svg><use href="#i-arrow"/></svg></button></div><small data-selected-source>Selecione um redirecionamento para ver seus acessos.</small></form>
+          <div class="saved-redirects" id="saved-redirects" hidden>
+            <h2>Seus redirecionamentos</h2>
+            <p>Configurações salvas neste navegador. Gerar uma configuração não ativa o DNS.</p>
+            <div id="saved-redirect-list"></div>
           </div>
-          <div class="tip">
-            <span class="tip-icon">&#128161;</span>
-            <span>
-              <span class="en"><code>.opts-uri</code> passes the full request path and query string to the destination.</span>
-              <span class="pt"><code>.opts-uri</code> repassa o caminho completo e a query string para o destino.</span>
-            </span>
+          <div class="analytics-card">
+            <div
+              class="section-heading"><div><h2>Redirecionamentos nos últimos 7 dias</h2><p>Respostas HTTP entregues pelo servidor · UTC</p></div><strong class="chart-total" data-metric="redirect">—</strong></div>
+            <div id="analytics-chart" class="analytics-chart"></div>
+            <p id="analytics-empty"
+              class="empty-state">Carregando dados do serviço…</p>
           </div>
-        </div>
-      </div>
+          <div class="analytics-details">
+            <article><svg><use href="#i-tag"/></svg><h3>Campanhas que chegam com contexto</h3><p>Os parâmetros UTM acompanham o link até o destino. Consulte origem, mídia e campanha na ferramenta de analytics instalada no seu site.</p><a href="#builder">Criar link com UTM →</a></article>
+            <article><svg><use href="#i-chart"/></svg><h3>Números reais, com limites claros</h3><p>Os contadores pertencem apenas ao domínio de origem selecionado. Não representam pessoas únicas. Bots e caches podem afetar as contagens.</p><p>As contagens podem ser consultadas por quem conhece o domínio.</p><small id="analytics-updated">Aguardando atualização.</small></article>
+          </div>
+        </section>
 
-      <div class="example-card">
-        <div class="example-header" onclick="toggleExample(this)">
-          <span class="arrow">&#9654;</span>
-          <span class="example-summary">
-            <span class="en">Redirect with path &amp; query:</span>
-            <span class="pt">Redirecionar com caminho &amp; query:</span>
-            <code>jobs.my-domain.com</code> &rarr; <code>my-domain.com/careers?ref=dns</code>
-          </span>
-        </div>
-        <div class="example-body">
-          <p>
-            <span class="en">Redirect a subdomain to a specific path with query parameters:</span>
-            <span class="pt">Redirecione um subdom&iacute;nio para um caminho espec&iacute;fico com par&acirc;metros de consulta:</span>
-          </p>
-          <div class="dns-record">
-            <div class="row">
-              <span class="label">Host:</span>
-              <span class="value">jobs</span>
-              <span class="label">Type:</span>
-              <span class="value">CNAME</span>
-              <span class="label">Value:</span>
-              <span class="value">my-domain.com.opts-slash.careers.opts-query-onswg5lsnf2a.{{ app.fqdn }}</span>
-            </div>
-          </div>
-          <div class="tip">
-            <span class="tip-icon">&#128161;</span>
-            <span>
-              <span class="en"><code>.opts-slash.careers</code> adds <code>/careers</code>. The query <code>ref=dns</code> is Base32-encoded. Use the <a href="javascript:;" onclick="openModal()" style="color:var(--primary-dark);font-weight:600">CNAME Generator</a> to build these automatically.</span>
-              <span class="pt"><code>.opts-slash.careers</code> adiciona <code>/careers</code>. A query <code>ref=dns</code> &eacute; codificada em Base32. Use o <a href="javascript:;" onclick="openModal()" style="color:var(--primary-dark);font-weight:600">Gerador de CNAME</a> para gerar automaticamente.</span>
-            </span>
-          </div>
-        </div>
-      </div>
+        <section id="docs" class="view-section docs-section"
+          hidden><div class="section-heading"><div><span class="eyebrow">DA ORIGEM AO DESTINO</span><h1>Um pequeno ajuste.<br>Um novo caminho<span>.</span></h1><p>O DNS indica a configuração. O serviço responde com o redirecionamento HTTP.</p></div></div><div class="how-grid"><article><span>01</span><h3>Escolha os endereços</h3><p>Informe seu domínio de origem e a URL de destino. Adicione UTMs se quiser identificar uma campanha.</p></article><article><span>02</span><h3>Configure seu DNS</h3><p>Copie os registros A e CNAME gerados para o provedor que gerencia seu domínio. Aguarde a propagação.</p></article><article><span>03</span><h3>Pronto para seguir</h3><p>Quando alguém acessa seu domínio por HTTP, o serviço lê a configuração DNS e responde com o destino.</p></article></div><div class="faq-list"><details open><summary>O que é o {{ app.projectName }}?</summary><p>É a nova identidade do redirect.center: um serviço gratuito e open source que transforma registros DNS em redirecionamentos HTTP. Você controla o destino pelo seu provedor DNS, sem criar uma conta ou hospedar uma aplicação própria.</p></details><details><summary>Qual a diferença entre 301 e 302?</summary><p>301 indica uma mudança permanente. 302 é temporário e é uma boa escolha para testar ou mudar campanhas. 307 e 308 preservam o método HTTP. Navegadores podem armazenar redirecionamentos permanentes em cache.</p></details><details><summary>Como funcionam os UTMs e analytics?</summary><p>UTMs são parâmetros anexados à URL de destino. A ferramenta de analytics daquele site interpreta esses parâmetros. Este painel mostra os contadores de cada domínio de origem, persistidos em um banco local, sem cookies, URLs completas, IPs ou identificadores de visitantes no banco de analytics. Os logs operacionais do servidor são independentes.</p></details><details><summary>Posso redirecionar um domínio com HTTPS?</summary><p>O destino pode usar HTTPS. Para receber acessos HTTPS na origem, você precisa terminar TLS em um proxy que tenha um certificado válido para esse domínio. Só configurar o DNS não provisiona esse certificado.</p></details><details><summary>Posso usar um subdomínio?</summary><p>Sim. O gerador usa um registro A na origem e um CNAME em redirect.origem. Para uma origem como go.exemplo.com, crie o A em go e o CNAME em redirect.go no painel da zona exemplo.com. Também é possível apontar um subdomínio diretamente para o CNAME gerado.</p></details><details><summary>Referência dos parâmetros DNS</summary><p><code>opts-https</code> define HTTPS no destino; <code>opts-statuscode-302</code> escolhe o status; <code>opts-uri</code> preserva caminho e query da origem; <code>opts-port-8080</code> define a porta; <code>opts-path-</code> e <code>opts-query-</code> recebem valores Base32. O gerador monta esses parâmetros e verifica o limite de 63 caracteres por rótulo e 253 no total.</p></details></div><section class="reference-section"><h2>Como usar</h2><p>Abra cada exemplo para ver os registros DNS necessários.</p><div class="faq-list">
+<details open><summary>Redirecionar o domínio raiz para www</summary><p>Crie estes registros na zona my-domain.com. O registro vazio ou @ representa a raiz.</p><pre class="dns-example">@          A       {{ app.entryIp }}
+redirect   CNAME   www.my-domain.com.{{ app.fqdn }}</pre><p>Sem modificador de status, o serviço responde com 301.</p><p>Adicione .opts-https para usar HTTPS no destino:</p><pre class="dns-example">www.my-domain.com.opts-https.{{ app.fqdn }}</pre></details>
+<details><summary>Redirecionar um subdomínio</summary><p>Um subdomínio pode apontar diretamente para o CNAME gerado.</p><pre class="dns-example">www   CNAME   my-domain.com.opts-https.{{ app.fqdn }}</pre></details>
+<details><summary>Preservar caminho e query string</summary><p>Adicione .opts-uri para encaminhar o caminho e os parâmetros recebidos.</p><pre class="dns-example">www   CNAME   new-domain.com.opts-https.opts-uri.{{ app.fqdn }}</pre></details>
+<details><summary>Redirecionar com caminho e parâmetros</summary><p>Este exemplo leva jobs.my-domain.com para my-domain.com/careers?ref=dns.</p><pre class="dns-example">jobs   CNAME   my-domain.com.opts-slash.careers.opts-query-ojswmplenzzq.{{ app.fqdn }}</pre><p>Use o gerador para codificar caminhos e parâmetros em Base32 automaticamente.</p></details></div><a class="button secondary" href="#builder">Gerador de CNAME <svg><use href="#i-arrow"/></svg></a></section>
+<section class="reference-section"><h2>Referência de parâmetros</h2><p>Modificadores que você pode adicionar ao registro CNAME para personalizar o redirecionamento.</p><div class="table-scroll"><table><thead><tr><th>Parâmetro</th><th>Descrição</th><th>Exemplo</th></tr></thead><tbody><tr><td><code>.opts-https</code></td><td>Forçar redirecionamento para HTTPS</td><td><code>example.com.opts-https.{{ app.fqdn }}</code></td></tr><tr><td><code>.opts-uri</code></td><td>Preservar caminho e query string originais</td><td><code>example.com.opts-uri.{{ app.fqdn }}</code></td></tr><tr><td><code>.opts-slash.{path}</code></td><td>Adicionar um caminho à URL de destino</td><td><code>example.com.opts-slash.blog.{{ app.fqdn }}</code></td></tr><tr><td><code>.opts-path-{base32}</code></td><td>Caminho codificado em Base32 (para caracteres especiais)</td><td><code>example.com.opts-path-mfrgg.{{ app.fqdn }}</code></td></tr><tr><td><code>.opts-query-{base32}</code></td><td>Query string codificada em Base32</td><td><code>example.com.opts-query-nfxgg.{{ app.fqdn }}</code></td></tr><tr><td><code>.opts-statuscode-{code}</code></td><td>Código de status HTTP: 301, 302, 307 ou 308</td><td><code>example.com.opts-statuscode-302.{{ app.fqdn }}</code></td></tr><tr><td><code>.opts-port-{port}</code></td><td>Redirecionar para uma porta específica</td><td><code>example.com.opts-port-8080.{{ app.fqdn }}</code></td></tr></tbody></table></div></section><section class="reference-section"><h2>Configuração rápida</h2><div class="quick-setup"><span><strong>1.</strong> A → <code>{{ app.entryIp }}</code></span><span><strong>2.</strong> CNAME → <code>dest.com.{{ app.fqdn }}</code></span><span><strong>3.</strong> <span>Aguarde a propagação DNS</span></span></div><p>Serviço gratuito e open source de redirecionamento via DNS. Sem cadastro, sem rastreamento individual e sem limite de redirecionamentos imposto pelo aplicativo.</p><div class="project-links"><a href="https://github.com/udleinati/redirect.center" target="_blank" rel="noopener">GitHub ↗</a><a href="https://github.com/udleinati/redirect.center/issues" target="_blank" rel="noopener">Issues ↗</a><a href="mailto:udlei@nati.biz">Contato ↗</a></div></section><details class="international" data-no-translate><summary>Desvio around the world · 12 languages</summary><div class="international-grid"><article lang="en"><h3>English</h3><p>Desvio (redirect.center) is a free DNS-based domain redirect service. Redirect URLs, domains, and subdomains using only CNAME records. No server configuration needed — just point your DNS and go. Supports HTTP 301, 302, 307, 308 redirects, path forwarding, query strings, HTTPS, and custom ports.</p></article><article lang="pt"><h3>Português</h3><p>Desvio (redirect.center) é um serviço gratuito de redirecionamento de domínios via DNS. Redirecione URLs, domínios e subdomínios usando apenas registros CNAME. Sem necessidade de configurar servidor — basta apontar seu DNS. Suporta redirecionamentos HTTP 301, 302, 307, 308, encaminhamento de caminho, query strings, HTTPS e portas personalizadas.</p></article><article lang="es"><h3>Español</h3><p>Desvio (redirect.center) es un servicio gratuito de redirección de dominios basado en DNS. Redirija URLs, dominios y subdominios usando solo registros CNAME. Sin necesidad de configurar un servidor — solo apunte su DNS. Soporta redirecciones HTTP 301, 302, 307, 308, reenvío de rutas, cadenas de consulta, HTTPS y puertos personalizados.</p></article><article lang="de"><h3>Deutsch</h3><p>Desvio (redirect.center) ist ein kostenloser DNS-basierter Domain-Weiterleitungsdienst. Leiten Sie URLs, Domains und Subdomains nur mit CNAME-Einträgen um. Keine Serverkonfiguration erforderlich — einfach DNS einstellen und fertig. Unterstützt HTTP 301, 302, 307, 308 Weiterleitungen, Pfadweiterleitung, Query-Strings, HTTPS und benutzerdefinierte Ports.</p></article><article lang="fr"><h3>Français</h3><p>Desvio (redirect.center) est un service gratuit de redirection de domaines basé sur le DNS. Redirigez des URL, domaines et sous-domaines en utilisant uniquement des enregistrements CNAME. Aucune configuration de serveur requise — pointez simplement votre DNS. Prend en charge les redirections HTTP 301, 302, 307, 308, le transfert de chemin, les chaînes de requête, HTTPS et les ports personnalisés.</p></article><article lang="it"><h3>Italiano</h3><p>Desvio (redirect.center) è un servizio gratuito di reindirizzamento domini basato su DNS. Reindirizza URL, domini e sottodomini usando solo record CNAME. Nessuna configurazione del server richiesta — basta puntare il DNS. Supporta reindirizzamenti HTTP 301, 302, 307, 308, inoltro del percorso, stringhe di query, HTTPS e porte personalizzate.</p></article><article lang="ja"><h3>日本語</h3><p>Desvio (redirect.center)は、DNSベースの無料ドメインリダイレクトサービスです。CNAMEレコードのみを使用して、URL、ドメイン、サブドメインをリダイレクトできます。</p></article><article lang="ru"><h3>Русский</h3><p>Desvio (redirect.center) — бесплатный сервис перенаправления доменов на основе DNS. Перенаправляйте URL-адреса, домены и поддомены, используя только записи CNAME.</p></article><article lang="ko"><h3>한국어</h3><p>Desvio (redirect.center)는 DNS 기반의 무료 도메인 리다이렉션 서비스입니다. CNAME 레코드만으로 URL, 도메인, 서브도메인을 리다이렉션할 수 있습니다.</p></article><article lang="zh"><h3>中文</h3><p>Desvio (redirect.center) 是一个基于 DNS 的免费域名重定向服务。仅使用 CNAME 记录即可重定向 URL、域名和子域名。</p></article><article lang="ar" dir="rtl"><h3>العربية</h3><p>Desvio (redirect.center) هو خدمة مجانية لإعادة توجيه النطاقات عبر DNS. قم بإعادة توجيه عناوين URL والنطاقات باستخدام سجلات CNAME فقط.</p></article><article lang="hi"><h3>हिन्दी</h3><p>Desvio (redirect.center) एक मुफ्त DNS-आधारित डोमेन रीडायरेक्ट सेवा है। केवल CNAME रिकॉर्ड का उपयोग करके URL रीडायरेक्ट करें।</p></article></div></details><p class="legacy-promise">© Desvio · Open source under MIT License · <span>Outros projetos:</span> <a href="https://linkpci.com/" target="_blank" rel="noopener">linkpci ↗</a> · <a href="https://streamrocks.com/" target="_blank" rel="noopener">streamrocks ↗</a></p><a href="#builder" class="button primary">Vamos criar um caminho <svg><use href="#i-arrow"/></svg></a></section>
 
-      <div style="text-align:center; margin-top: 24px;">
-        <button class="btn-cta" onclick="openModal()">
-          <span class="icon">&#9889;</span>
-          <span class="en">CNAME Generator</span>
-          <span class="pt">Gerador de CNAME</span>
-        </button>
-      </div>
+        <section id="report" class="view-section report-section" hidden>
+          <div class="section-heading">
+            <div><span class="eyebrow">UM CAMINHO MAIS SEGURO</span><h1>Denunciar uma URL<span>.</span></h1><p>Encontrou um redirecionamento suspeito? Envie os detalhes para revisão.</p></div>
+          </div>
+          <div class="report-layout">
+            <form id="report-form" class="report-card" novalidate>
+              <div
+                class="field"><label for="report-url">URL suspeita</label><input id="report-url" type="url" name="url" placeholder="https://example.com/suspicious" maxlength="2048" required autocomplete="off" spellcheck="false"><small>Informe o endereço completo, incluindo http:// ou https://.</small></div>
+              <div
+                class="field"><label for="report-reason">Motivo da denúncia</label><select id="report-reason" name="reason"><option value="phishing">Phishing · roubo de dados</option><option value="malware">Malware · arquivo ou software malicioso</option><option value="fraud">Fraude ou golpe</option><option value="other">Outro motivo</option></select></div>
+              <div
+                class="field"><label for="report-details">Detalhes <span>Opcional</span></label><textarea id="report-details" name="details" maxlength="2000" rows="5" placeholder="Descreva o que você encontrou, sem incluir senhas ou dados pessoais."></textarea><small>Até 2.000 caracteres. Não envie dados pessoais ou credenciais.</small></div>
+              <p id="report-error" class="form-error" role="alert" hidden></p>
+              <div
+                class="form-footer"><span>Sem cadastro.</span><button class="button primary" type="submit" id="submit-report">Enviar denúncia <svg><use href="#i-arrow"/></svg></button></div>
+            </form>
+            <aside
+              class="report-info"><svg><use href="#i-info"/></svg><h2>O que acontece depois?</h2><p>A denúncia fica na fila de revisão do operador. O envio não bloqueia o endereço automaticamente.</p><p>O formulário não abre a URL denunciada. Você receberá um protocolo para identificar seu envio.</p><small>Limite de cinco denúncias por hora por conexão de origem.</small></aside>
+          </div>
+          <div id="report-success" class="report-success" role="status"
+            hidden><span class="eyebrow">DENÚNCIA REGISTRADA</span><h2 id="report-success-heading" tabindex="-1">Obrigado por avisar.</h2><p>Seu envio está aguardando revisão. Guarde o protocolo abaixo.</p><code id="report-id"></code><button class="button secondary" type="button" id="copy-report">Copiar protocolo</button></div>
+        </section>
+        <div class="bottom-note" id="overview-note">
+          <svg>
+            <use href="#i-code" />
+          </svg>
+          <p>A web fica melhor quando os caminhos são abertos. <a href="https://github.com/udleinati/redirect.center" target="_blank" rel="noopener">Conheça nosso código <span>↗</span></a></p>
+        </div>
+        <footer
+          class="footer"><a href="/report">Denunciar URL</a><span>{{ app.projectName }} <span class="footer-dot">/</span> Feito para conectar.</span><span>O redirect.center em uma nova direção. <a href="https://github.com/udleinati/redirect.center/issues" target="_blank" rel="noopener">Feedback ↗</a></span></footer>
+      </main>
     </div>
-  </section>
-
-  <!-- Parameters Reference -->
-  <section class="section">
-    <div class="container">
-      <h2 class="section-title">
-        <span class="en">Parameters Reference</span>
-        <span class="pt">Refer&ecirc;ncia de Par&acirc;metros</span>
-      </h2>
-      <p class="section-subtitle">
-        <span class="en">Modifiers you can add to your CNAME record to customize the redirect.</span>
-        <span class="pt">Modificadores que voc&ecirc; pode adicionar ao seu registro CNAME para personalizar o redirecionamento.</span>
-      </p>
-      <table class="params-table">
-        <thead>
-          <tr>
-            <th>
-              <span class="en">Parameter</span>
-              <span class="pt">Par&acirc;metro</span>
-            </th>
-            <th>
-              <span class="en">Description</span>
-              <span class="pt">Descri&ccedil;&atilde;o</span>
-            </th>
-            <th>
-              <span class="en">Example</span>
-              <span class="pt">Exemplo</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><code>.opts-https</code></td>
-            <td>
-              <span class="en">Force redirect to HTTPS</span>
-              <span class="pt">For&ccedil;ar redirecionamento para HTTPS</span>
-            </td>
-            <td><code>example.com.opts-https.{{ app.fqdn }}</code></td>
-          </tr>
-          <tr>
-            <td><code>.opts-uri</code></td>
-            <td>
-              <span class="en">Preserve original path and query string</span>
-              <span class="pt">Preservar caminho e query string originais</span>
-            </td>
-            <td><code>example.com.opts-uri.{{ app.fqdn }}</code></td>
-          </tr>
-          <tr>
-            <td><code>.opts-slash.{path}</code></td>
-            <td>
-              <span class="en">Append a path to the destination URL</span>
-              <span class="pt">Adicionar um caminho &agrave; URL de destino</span>
-            </td>
-            <td><code>example.com.opts-slash.blog.{{ app.fqdn }}</code></td>
-          </tr>
-          <tr>
-            <td><code>.opts-path-{base32}</code></td>
-            <td>
-              <span class="en">Base32-encoded path (for special characters)</span>
-              <span class="pt">Caminho codificado em Base32 (para caracteres especiais)</span>
-            </td>
-            <td><code>example.com.opts-path-mfrgg.{{ app.fqdn }}</code></td>
-          </tr>
-          <tr>
-            <td><code>.opts-query-{base32}</code></td>
-            <td>
-              <span class="en">Base32-encoded query string</span>
-              <span class="pt">Query string codificada em Base32</span>
-            </td>
-            <td><code>example.com.opts-query-nfxgg.{{ app.fqdn }}</code></td>
-          </tr>
-          <tr>
-            <td><code>.opts-statuscode-{code}</code></td>
-            <td>
-              <span class="en">HTTP status code: 301, 302, 307 or 308</span>
-              <span class="pt">C&oacute;digo de status HTTP: 301, 302, 307 ou 308</span>
-            </td>
-            <td><code>example.com.opts-statuscode-302.{{ app.fqdn }}</code></td>
-          </tr>
-          <tr>
-            <td><code>.opts-port-{port}</code></td>
-            <td>
-              <span class="en">Redirect to a specific port</span>
-              <span class="pt">Redirecionar para uma porta espec&iacute;fica</span>
-            </td>
-            <td><code>example.com.opts-port-8080.{{ app.fqdn }}</code></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <!-- Footer -->
-  <footer>
-    <div class="container">
-      <div class="footer-main">
-        <div class="footer-col">
-          <h4>{{ app.projectName }}</h4>
-          <p>
-            <span class="en">Free, open-source DNS redirect service. No sign-up, no tracking, no limits.</span>
-            <span class="pt">Servi&ccedil;o gratuito e open-source de redirecionamento via DNS. Sem cadastro, sem rastreamento, sem limites.</span>
-          </p>
-          <p style="margin-top: 8px;">
-            <a href="https://github.com/udleinati/redirect.center">GitHub</a> &middot;
-            <a href="https://github.com/udleinati/redirect.center/issues">Issues</a> &middot;
-            <a href="mailto:udlei@nati.biz">Contact</a>
-          </p>
-        </div>
-        <div class="footer-col">
-          <h4>Quick Setup</h4>
-          <ul>
-            <li>1. A record &rarr; <code style="color:#94a3b8">{{ app.entryIp }}</code></li>
-            <li>2. CNAME &rarr; <code style="color:#94a3b8">dest.{{ app.fqdn }}</code></li>
-            <li>3. <span class="en">Wait for DNS propagation</span><span class="pt">Aguarde a propaga&ccedil;&atilde;o DNS</span></li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="footer-seo">
-        <div class="footer-seo-block" lang="en">
-          <p>redirect.center is a free DNS-based domain redirect service. Redirect URLs, domains, and subdomains using only CNAME records. No server configuration needed — just point your DNS and go. Supports HTTP 301, 302, 307, 308 redirects, path forwarding, query strings, HTTPS, and custom ports.</p>
-        </div>
-        <div class="footer-seo-block" lang="pt">
-          <p>redirect.center &eacute; um servi&ccedil;o gratuito de redirecionamento de dom&iacute;nios via DNS. Redirecione URLs, dom&iacute;nios e subdom&iacute;nios usando apenas registros CNAME. Sem necessidade de configurar servidor &mdash; basta apontar seu DNS. Suporta redirecionamentos HTTP 301, 302, 307, 308, encaminhamento de caminho, query strings, HTTPS e portas personalizadas.</p>
-        </div>
-        <div class="footer-seo-block" lang="es">
-          <p>redirect.center es un servicio gratuito de redirecci&oacute;n de dominios basado en DNS. Redirija URLs, dominios y subdominios usando solo registros CNAME. Sin necesidad de configurar un servidor &mdash; solo apunte su DNS. Soporta redirecciones HTTP 301, 302, 307, 308, reenv&iacute;o de rutas, cadenas de consulta, HTTPS y puertos personalizados.</p>
-        </div>
-        <div class="footer-seo-block" lang="de">
-          <p>redirect.center ist ein kostenloser DNS-basierter Domain-Weiterleitungsdienst. Leiten Sie URLs, Domains und Subdomains nur mit CNAME-Eintr&auml;gen um. Keine Serverkonfiguration erforderlich &mdash; einfach DNS einstellen und fertig. Unterst&uuml;tzt HTTP 301, 302, 307, 308 Weiterleitungen, Pfadweiterleitung, Query-Strings, HTTPS und benutzerdefinierte Ports.</p>
-        </div>
-        <div class="footer-seo-block" lang="fr">
-          <p>redirect.center est un service gratuit de redirection de domaines bas&eacute; sur le DNS. Redirigez des URL, domaines et sous-domaines en utilisant uniquement des enregistrements CNAME. Aucune configuration de serveur requise &mdash; pointez simplement votre DNS. Prend en charge les redirections HTTP 301, 302, 307, 308, le transfert de chemin, les cha&icirc;nes de requ&ecirc;te, HTTPS et les ports personnalis&eacute;s.</p>
-        </div>
-        <div class="footer-seo-block" lang="it">
-          <p>redirect.center &#232; un servizio gratuito di reindirizzamento domini basato su DNS. Reindirizza URL, domini e sottodomini usando solo record CNAME. Nessuna configurazione del server richiesta &mdash; basta puntare il DNS. Supporta reindirizzamenti HTTP 301, 302, 307, 308, inoltro del percorso, stringhe di query, HTTPS e porte personalizzate.</p>
-        </div>
-        <div class="footer-seo-block" lang="ja">
-          <p>redirect.center&#12399;&#12289;DNS&#12505;&#12540;&#12473;&#12398;&#28961;&#26009;&#12489;&#12513;&#12452;&#12531;&#12522;&#12480;&#12452;&#12524;&#12463;&#12488;&#12469;&#12540;&#12499;&#12473;&#12391;&#12377;&#12290;CNAME&#12524;&#12467;&#12540;&#12489;&#12398;&#12415;&#12434;&#20351;&#29992;&#12375;&#12390;&#12289;URL&#12289;&#12489;&#12513;&#12452;&#12531;&#12289;&#12469;&#12502;&#12489;&#12513;&#12452;&#12531;&#12434;&#12522;&#12480;&#12452;&#12524;&#12463;&#12488;&#12391;&#12365;&#12414;&#12377;&#12290;</p>
-        </div>
-        <div class="footer-seo-block" lang="ru">
-          <p>redirect.center &mdash; &#1073;&#1077;&#1089;&#1087;&#1083;&#1072;&#1090;&#1085;&#1099;&#1081; &#1089;&#1077;&#1088;&#1074;&#1080;&#1089; &#1087;&#1077;&#1088;&#1077;&#1085;&#1072;&#1087;&#1088;&#1072;&#1074;&#1083;&#1077;&#1085;&#1080;&#1103; &#1076;&#1086;&#1084;&#1077;&#1085;&#1086;&#1074; &#1085;&#1072; &#1086;&#1089;&#1085;&#1086;&#1074;&#1077; DNS. &#1055;&#1077;&#1088;&#1077;&#1085;&#1072;&#1087;&#1088;&#1072;&#1074;&#1083;&#1103;&#1081;&#1090;&#1077; URL-&#1072;&#1076;&#1088;&#1077;&#1089;&#1072;, &#1076;&#1086;&#1084;&#1077;&#1085;&#1099; &#1080; &#1087;&#1086;&#1076;&#1076;&#1086;&#1084;&#1077;&#1085;&#1099;, &#1080;&#1089;&#1087;&#1086;&#1083;&#1100;&#1079;&#1091;&#1103; &#1090;&#1086;&#1083;&#1100;&#1082;&#1086; &#1079;&#1072;&#1087;&#1080;&#1089;&#1080; CNAME.</p>
-        </div>
-        <div class="footer-seo-block" lang="ko">
-          <p>redirect.center&#45716; DNS &#44592;&#48152;&#51032; &#47924;&#47308; &#46020;&#47700;&#51064; &#47532;&#45796;&#51060;&#47113;&#49496; &#49436;&#48708;&#49828;&#51077;&#45768;&#45796;. CNAME &#47112;&#53076;&#46300;&#47564;&#51004;&#47196; URL, &#46020;&#47700;&#51064;, &#49436;&#48652;&#46020;&#47700;&#51064;&#51012; &#47532;&#45796;&#51060;&#47113;&#49496;&#54624; &#49688; &#51080;&#49845;&#45768;&#45796;.</p>
-        </div>
-        <div class="footer-seo-block" lang="zh">
-          <p>redirect.center &#26159;&#19968;&#20010;&#22522;&#20110; DNS &#30340;&#20813;&#36153;&#22495;&#21517;&#37325;&#23450;&#21521;&#26381;&#21153;&#12290;&#20165;&#20351;&#29992; CNAME &#35760;&#24405;&#21363;&#21487;&#37325;&#23450;&#21521; URL&#12289;&#22495;&#21517;&#21644;&#23376;&#22495;&#21517;&#12290;</p>
-        </div>
-        <div class="footer-seo-block" lang="ar">
-          <p>redirect.center &#1607;&#1608; &#1582;&#1583;&#1605;&#1577; &#1605;&#1580;&#1575;&#1606;&#1610;&#1577; &#1604;&#1573;&#1593;&#1575;&#1583;&#1577; &#1578;&#1608;&#1580;&#1610;&#1607; &#1575;&#1604;&#1606;&#1591;&#1575;&#1602;&#1575;&#1578; &#1593;&#1576;&#1585; DNS. &#1602;&#1605; &#1576;&#1573;&#1593;&#1575;&#1583;&#1577; &#1578;&#1608;&#1580;&#1610;&#1607; &#1593;&#1606;&#1575;&#1608;&#1610;&#1606; URL &#1608;&#1575;&#1604;&#1606;&#1591;&#1575;&#1602;&#1575;&#1578; &#1576;&#1575;&#1587;&#1578;&#1582;&#1583;&#1575;&#1605; &#1587;&#1580;&#1604;&#1575;&#1578; CNAME &#1601;&#1602;&#1591;.</p>
-        </div>
-        <div class="footer-seo-block" lang="hi">
-          <p>redirect.center &#2319;&#2325; &#2350;&#2369;&#2347;&#2381;&#2340; DNS-&#2310;&#2343;&#2366;&#2352;&#2367;&#2340; &#2337;&#2379;&#2350;&#2375;&#2344; &#2352;&#2368;&#2337;&#2366;&#2351;&#2352;&#2375;&#2325;&#2381;&#2335; &#2360;&#2375;&#2357;&#2366; &#2361;&#2376;&#2404; &#2325;&#2375;&#2357;&#2354; CNAME &#2352;&#2367;&#2325;&#2377;&#2352;&#2381;&#2337; &#2325;&#2366; &#2313;&#2346;&#2351;&#2379;&#2327; &#2325;&#2352;&#2325;&#2375; URL &#2352;&#2368;&#2337;&#2366;&#2351;&#2352;&#2375;&#2325;&#2381;&#2335; &#2325;&#2352;&#2375;&#2306;&#2404;</p>
-        </div>
-      </div>
-
-      <div class="footer-bottom">
-        &copy; {{ app.projectName }} &middot; Open source under MIT License &middot;
-        Other projects:
-        <a class="muted" href="https://linkpci.com/" rel="noopener">linkpci</a> &middot;
-        <a class="muted" href="https://streamrocks.com/" rel="noopener">streamrocks</a>
-      </div>
-    </div>
-  </footer>
-
-  <!-- CNAME Generator Modal -->
-  <div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
-    <div class="modal">
-      <button class="modal-close" onclick="closeModal()">&times;</button>
-      <h2>&#9889; CNAME Generator</h2>
-      <p class="modal-desc">
-        <span class="en">Paste your destination URL and get the CNAME value ready to use in your DNS.</span>
-        <span class="pt">Cole a URL de destino e obtenha o valor CNAME pronto para usar no seu DNS.</span>
-      </p>
-      <label for="url">
-        <span class="en">Destination URL</span>
-        <span class="pt">URL de destino</span>
-      </label>
-      <input type="url" id="url" placeholder="https://www.example.com/path?query=value" autocomplete="off" />
-      <div class="converter-arrow">&#8595;</div>
-      <label for="cname">
-        <span class="en">CNAME value for your DNS</span>
-        <span class="pt">Valor CNAME para seu DNS</span>
-      </label>
-      <div class="input-group">
-        <input type="text" id="cname" readonly />
-        <button class="btn-copy" id="copyCNAME" type="button">Copy</button>
-      </div>
-      <div class="modal-tip">
-        <span class="en"><strong>Redirecting a root/bare domain?</strong> You also need an <strong>A record</strong> pointing to <code>{{ app.entryIp }}</code> and a CNAME on the <code>redirect</code> subdomain.</span>
-        <span class="pt"><strong>Redirecionando um dom&iacute;nio raiz?</strong> Voc&ecirc; tamb&eacute;m precisa de um <strong>registro A</strong> apontando para <code>{{ app.entryIp }}</code> e um CNAME no subdom&iacute;nio <code>redirect</code>.</span>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // Language
-    function setLang(lang) {
-      document.body.setAttribute('data-lang', lang);
-      document.documentElement.setAttribute('lang', lang);
-      document.getElementById('lang-en').classList.toggle('active', lang === 'en');
-      document.getElementById('lang-pt').classList.toggle('active', lang === 'pt');
-      localStorage.setItem('lang', lang);
-    }
-
-    (function () {
-      var saved = localStorage.getItem('lang');
-      if (saved) { setLang(saved); return; }
-      var browserLang = (navigator.language || '').toLowerCase();
-      setLang(browserLang.startsWith('pt') ? 'pt' : 'en');
-    })();
-
-    // Modal
-    function openModal() {
-      document.getElementById('modalOverlay').classList.add('open');
-      setTimeout(function () { document.getElementById('url').focus(); }, 100);
-    }
-
-    function closeModal() {
-      document.getElementById('modalOverlay').classList.remove('open');
-    }
-
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') closeModal();
-    });
-
-    // Accordion
-    function toggleExample(header) {
-      header.parentElement.classList.toggle('open');
-    }
-
-
-    // CNAME converter
-    document.addEventListener('DOMContentLoaded', function () {
-      var urlInput = document.getElementById('url');
-      var cnameOutput = document.getElementById('cname');
-      var copyBtn = document.getElementById('copyCNAME');
-
-      urlInput.addEventListener('input', function () {
-        cnameOutput.value = transformURLtoCNAME(this.value);
-      });
-
-      copyBtn.addEventListener('click', function () {
-        if (!cnameOutput.value) return;
-        navigator.clipboard.writeText(cnameOutput.value).then(function () {
-          copyBtn.textContent = 'Copied!';
-          copyBtn.classList.add('copied');
-          setTimeout(function () {
-            copyBtn.textContent = 'Copy';
-            copyBtn.classList.remove('copied');
-          }, 2000);
-        });
-      });
-
-      function transformURLtoCNAME(urlStr) {
-        if (!urlStr) return '';
-        var url;
-        try { url = new URL(urlStr); } catch (e) { return ''; }
-
-        var result = url.hostname;
-
-        if (url.pathname && url.pathname !== '/') {
-          if (!url.pathname.match(/^[\/a-z0-9\-_\.]+$/) || url.pathname.match(/query/)) {
-            result += '.opts-path-' + base32.encode(
-              new TextEncoder().encode(url.pathname),
-              { type: 'rfc4648', lc: true }
-            );
-          } else {
-            result += url.pathname
-              .replace(/\//g, '.opts-slash.')
-              .replace(/([^.])$/, '$1')
-              .replace(/\.$/, '');
-          }
-        }
-
-        if (url.search) {
-          result += '.opts-query-' + base32.encode(
-            new TextEncoder().encode(url.search.slice(1)),
-            { type: 'rfc4648', lc: true }
-          );
-        }
-
-        if (url.protocol === 'https:') {
-          result += '.opts-https';
-        }
-
-        result += '.{{ app.fqdn }}.';
-        return result;
-      }
-    });
-  </script>
-</body>
-
+    <datalist id="saved-domains"></datalist>
+    <div class="toast" id="toast" role="status" hidden></div>
+    <noscript><p class="noscript">Ative o JavaScript para usar o gerador e consultar analytics. O serviço de redirecionamento funciona independentemente de JavaScript.</p></noscript>
+  </body>
 </html>
