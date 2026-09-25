@@ -2,7 +2,7 @@
 
 ## Criar um redirecionamento
 
-1. Abra **Criar redirecionamento**.
+1. Abra `/redirects/new` (**Criar redirecionamento**).
 2. Informe a origem sem protocolo ou caminho, por exemplo `go.example.com`.
 3. Informe a URL completa de destino, por exemplo `https://example.org/launch`.
 4. Escolha o status. O gerador começa com **302** para facilitar testes;
@@ -64,6 +64,12 @@ conflito; use o modo DNS sem proxy. Um proxy de TLS exige configuração própri
 | `.opts-statuscode-{code}` | 301, 302, 307 ou 308                                             | `example.com.opts-statuscode-302.redirect.center` |
 | `.opts-port-{port}`       | Porta de destino                                                 | `example.com.opts-port-8080.redirect.center`      |
 
+Para acrescentar vários segmentos sem caracteres especiais, repita
+`.opts-slash.{segmento}`. Por exemplo, a resposta na
+[issue #66](https://github.com/udleinati/redirect.center/issues/66) usa
+`www.twitch.tv.opts-slash.videos.opts-slash.1558730390.opts-https.redirect.center.`
+para o caminho `/videos/1558730390`.
+
 O gerador valida o máximo de 63 caracteres por rótulo e 253 no nome DNS
 completo, sem o ponto final. Caminhos são codificados em partes; cada parâmetro
 de query ocupa um rótulo. URLs longas podem não caber: encurte os valores.
@@ -103,9 +109,9 @@ Cada **domínio de origem** identifica um redirecionamento. `go.example.com` e
 `shop.example.com` têm contadores independentes, mesmo quando apontam para o
 mesmo destino.
 
-No painel, informe o domínio e clique em **Consultar acessos**. Configurações
-geradas ficam salvas neste navegador e aparecem como atalhos em **Seus
-redirecionamentos**. A lista usa `localStorage`, não é sincronizada entre
+Em `/analytics`, informe o domínio e clique em **Consultar acessos**.
+Configurações geradas ficam salvas neste navegador e aparecem como atalhos em
+**Seus redirecionamentos**. A lista usa `localStorage`, não é sincronizada entre
 dispositivos e não comprova que o DNS foi ativado. O link **Ver acessos deste
 redirecionamento** abre o painel da configuração gerada.
 

@@ -1,245 +1,58 @@
-import { Hono } from "hono";
-import { serveStatic } from "hono/deno";
-import {
-  AnalyticsService,
-  normalizeAnalyticsDomain,
-} from "./services/analytics.ts";
 import vento from "ventojs";
-import {
-  readReportBody,
-  ReportError,
-  ReportService,
-  validateReport,
-} from "./services/reports.ts";
 import { config } from "./config.ts";
-import { errorHandler } from "./middleware/error-handler.ts";
 import { guardian } from "./services/guardian.ts";
-import { HttpError, resolveDnsAndRedirect } from "./services/redirect.ts";
+import { AnalyticsService } from "./services/analytics.ts";
+import { ReportService } from "./services/reports.ts";
 import { dnsCacheSize, dnsInflightSize } from "./helpers/dns.ts";
+import {
+  createSiteRoutes,
+  type PagePath,
+  pageRoutes,
+  type RenderedPage,
+} from "./routes/site.ts";
+import { createRedirectRoutes } from "./routes/redirect.ts";
+import { createHostRouter } from "./routes/router.ts";
 
-const app = new Hono();
 await Deno.mkdir(".data", { recursive: true });
 const kv = await Deno.openKv(".data/analytics.sqlite");
 const analytics = new AnalyticsService(kv);
 const reports = new ReportService(kv);
-function recordRedirect(source: string, status: number) {
-  analytics.record(source, status).catch((error) =>
-    console.error("[analytics]", error)
-  );
-}
 
-// Pre-render homepage at startup (raw + gzip) to avoid per-request
-// template execution and CompressionStream allocations.
-const homepage = await (async () => {
+// Render each public route once. The route gets its own canonical URL and title.
+const pages = await (async () => {
   const env = vento({
     includes: new URL("../views", import.meta.url).pathname,
     autoescape: true,
   });
   const template = await env.load("index.vto");
-  const result = await template({ app: config });
-  const html = result.content;
-
-  const htmlBytes = new TextEncoder().encode(html);
-  const gzipStream = new CompressionStream("gzip");
-  const compressed = await new Response(
-    new Blob([htmlBytes]).stream().pipeThrough(gzipStream),
-  ).arrayBuffer();
-
-  return { html, gzip: new Uint8Array(compressed) };
+  const result = {} as Record<PagePath, RenderedPage>;
+  for (const path of Object.keys(pageRoutes) as PagePath[]) {
+    const { key, title } = pageRoutes[path];
+    const html = (await template({
+      app: config,
+      pageKey: key,
+      pageTitle: title,
+      canonicalPath: path,
+      hidden: {
+        overview: key === "overview" || key === "builder" ? "" : "hidden",
+        analytics: key === "analytics" ? "" : "hidden",
+        docs: key === "docs" ? "" : "hidden",
+        report: key === "report" ? "" : "hidden",
+        overviewNote: key === "overview" || key === "builder" ? "" : "hidden",
+      },
+    })).content;
+    const htmlBytes = new TextEncoder().encode(html);
+    const compressed = await new Response(
+      new Blob([htmlBytes]).stream().pipeThrough(new CompressionStream("gzip")),
+    ).arrayBuffer();
+    result[path] = { html, gzip: new Uint8Array(compressed) };
+  }
+  return result;
 })();
 
-app.onError(errorHandler);
-
-// Access log middleware
-app.use("/", async (c, next) => {
-  // remoteAddr = real TCP connection IP (can't be spoofed)
-  // x-forwarded-for/x-real-ip are only trustworthy behind a reverse proxy
-  const ip =
-    ((c.env as Record<string, unknown>)?.remoteAddr as Deno.NetAddr | undefined)
-      ?.hostname ||
-    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
-    c.req.header("x-real-ip") ||
-    "-";
-  const host = c.req.header("host") || "-";
-  const method = c.req.method;
-  const url = new URL(c.req.url);
-  const path = url.pathname + url.search;
-  const ua = c.req.header("user-agent") || "-";
-
-  // Log BEFORE processing
-  console.log(
-    `[req] ${ip} "${method} ${path}" host=${host} ua="${ua}"`,
-  );
-
-  const start = Date.now();
-  await next();
-  const ms = Date.now() - start;
-
-  // Log AFTER processing
-  const status = c.res.status;
-  const location = c.res.headers.get("location") || "-";
-
-  console.log(
-    `[res] ${ip} "${method} ${path}" host=${host} ${status} location=${location} ${ms}ms`,
-  );
-});
-
-// Homepage - only for the FQDN host (served from pre-rendered cache)
-app.on("GET", ["/", "/report"], async (c, next) => {
-  const host = (c.req.header("host") || "").split(":")[0];
-
-  if (host === config.fqdn) {
-    const ua = c.req.header("user-agent");
-    if (!ua) return c.json({ statusCode: 403, message: "Forbidden" }, 403);
-
-    const acceptsGzip = c.req.header("accept-encoding")?.includes("gzip") ??
-      false;
-    const headers: Record<string, string> = {
-      "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": config.fqdn === "localhost"
-        ? "no-store"
-        : "public, max-age=300",
-      "Vary": "Accept-Encoding",
-    };
-    if (acceptsGzip) headers["Content-Encoding"] = "gzip";
-
-    return new Response(acceptsGzip ? homepage.gzip : homepage.html, {
-      headers,
-    });
-  }
-
-  // If not FQDN, skip to redirect
-  await next();
-});
-
-// Assets and aggregate analytics are served only on the service domain.
-app.use("/public/*", async (c, next) => {
-  if ((c.req.header("host") || "").split(":")[0] !== config.fqdn) return next();
-  return serveStatic({ root: "./" })(c, next);
-});
-
-app.get("/api/analytics", async (c, next) => {
-  if ((c.req.header("host") || "").split(":")[0] !== config.fqdn) return next();
-  c.header("Cache-Control", "no-store");
-  const domain = normalizeAnalyticsDomain(c.req.query("domain") || "");
-  if (!domain) {
-    return c.json({ error: "A valid source domain is required" }, 400);
-  }
-  return c.json(await analytics.overview(domain));
-});
-
-// Reports are queued privately for operator review; never fetch or auto-block their URL.
-app.post("/api/reports", async (c, next) => {
-  if ((c.req.header("host") || "").split(":")[0] !== config.fqdn) return next();
-  c.header("Cache-Control", "no-store");
-  if (
-    !c.req.header("content-type")?.toLowerCase().startsWith("application/json")
-  ) return c.json({ error: "unsupported_content_type" }, 415);
-  try {
-    const input = validateReport(await readReportBody(c.req.raw));
-    const client = ((c.env as Record<string, unknown>)?.remoteAddr as
-      | Deno.NetAddr
-      | undefined)?.hostname || "unknown";
-    return c.json(await reports.submit(input, client), 201);
-  } catch (error) {
-    if (error instanceof ReportError) {
-      if (error.status === 429) c.header("Retry-After", "3600");
-      return c.json({ error: error.code }, error.status);
-    }
-    throw error;
-  }
-});
-
-// Diagnostic endpoint — only accessible on the FQDN
-app.get("/healthz", (c) => {
-  const host = (c.req.header("host") || "").split(":")[0];
-  if (host !== config.fqdn) return c.notFound();
-
-  const mem = Deno.memoryUsage();
-  return c.json({
-    uptime: Math.floor(performance.now() / 1000),
-    memory: {
-      rss: `${(mem.rss / 1024 / 1024).toFixed(1)}MB`,
-      heapUsed: `${(mem.heapUsed / 1024 / 1024).toFixed(1)}MB`,
-      heapTotal: `${(mem.heapTotal / 1024 / 1024).toFixed(1)}MB`,
-      external: `${(mem.external / 1024 / 1024).toFixed(1)}MB`,
-    },
-    dnsCache: dnsCacheSize(),
-    dnsInflight: dnsInflightSize(),
-  });
-});
-
-// robots.txt for redirect domains — tells crawlers not to follow/index redirects
-app.get("/robots.txt", (c) => {
-  const host = (c.req.header("host") || "").split(":")[0];
-  if (host === config.fqdn) return c.notFound();
-  c.header("Cache-Control", "public, max-age=86400");
-  return c.text("User-agent: *\nDisallow: /\n");
-});
-
-// FQDN-only routes: return 404 for non-redirect paths on the service domain
-app.all("/*", async (c, next) => {
-  const host = (c.req.header("host") || "").split(":")[0];
-  if (host === config.fqdn) {
-    return c.json({ statusCode: 404, message: "Not Found" }, 404);
-  }
-  await next();
-});
-
-// All other routes - redirect logic
-app.all("/*", handleRedirect);
-
-async function handleRedirect(c: import("hono").Context): Promise<Response> {
-  let host = c.req.header("host") || "";
-  if (!host) throw new HttpError(400, "Bad Request");
-  host = host.includes(":") ? host.split(":")[0] : host;
-
-  // Block requests without User-Agent (bots that follow redirects infinitely)
-  if (!c.req.header("user-agent")) {
-    throw new HttpError(403, "Forbidden");
-  }
-
-  // Source guardian check
-  if (guardian.isDenied(host)) {
-    throw new HttpError(403, "Forbidden");
-  }
-
-  // Resolve redirect
-  const redirect = await resolveDnsAndRedirect(
-    host,
-    c.req.url.replace(/^https?:\/\/[^/]+/, ""),
-  );
-
-  // Destination guardian check
-  if (guardian.isDenied(redirect.fqdn)) {
-    throw new HttpError(403, "Forbidden");
-  }
-
-  // Self-redirect loop detection: destination points back to the same host
-  if (redirect.fqdn === host) {
-    throw new HttpError(508, `Loop detected: ${host} redirects to itself`);
-  }
-
-  // Encode non-ASCII characters to avoid ByteString errors in Response headers
-  let safeLocation: string;
-  try {
-    safeLocation = new URL(redirect.url).href;
-  } catch {
-    safeLocation = encodeURI(redirect.url);
-  }
-
-  recordRedirect(host, redirect.status);
-
-  // Use " " instead of null to work around Deno.serve memory leak
-  // See: https://github.com/denoland/deno/issues/27545
-  return new Response(" ", {
-    status: redirect.status,
-    headers: {
-      "Location": safeLocation,
-      "Cache-Control": "public, max-age=15",
-    },
-  });
-}
+const site = createSiteRoutes({ config, pages, analytics, reports });
+const redirects = createRedirectRoutes({ guardian, analytics });
+const app = createHostRouter(config.fqdn, site, redirects);
 
 // Periodic health log — helps correlate CPU spikes in CloudWatch with memory/cache state
 // Memory watchdog — graceful restart when RSS exceeds limit (Deno native memory leak workaround)

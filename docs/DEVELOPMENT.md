@@ -52,7 +52,11 @@ Não use o FQDN/IP local em registros DNS públicos. Não é necessário mudar
 - `src/services/redirect.ts`: parser compatível com os modificadores existentes.
 - `src/services/analytics.ts`: incrementos atômicos e consulta dos sete dias em
   UTC.
-- `src/main.ts`: interface em cache, assets, analytics e redirecionamentos.
+- `src/routes/site.ts`: páginas, assets, APIs e saúde no host do serviço.
+- `src/routes/redirect.ts`: redirecionamentos em todos os outros hosts.
+- `src/routes/router.ts`: separação por `Host`; caminhos do site não interceptam
+  origens.
+- `src/main.ts`: inicialização, renderização das páginas e servidor.
 
 O site usa Google Fonts para tipografia, com fontes locais de fallback. O
 formulário funciona sem esse recurso externo. Não há script externo de

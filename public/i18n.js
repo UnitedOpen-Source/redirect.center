@@ -799,9 +799,9 @@ export function initLanguage(onChange) {
     for (const { node, key, original } of attributes) {
       node.setAttribute(key, t(original));
     }
-    document.title = `${
+    document.title = `${document.getElementById("page-title").textContent} · ${
       document.querySelector(".brand").textContent.trim().replace(/\.$/, "")
-    } — ${t("Seu domínio, na direção certa")}.`;
+    }`;
     try {
       localStorage.setItem("desvio-language", language);
     } catch { /* Storage may be unavailable in private browsing. */ }

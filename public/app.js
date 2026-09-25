@@ -7,7 +7,9 @@ let toastTimer;
 let savedRedirects = [];
 let selectedSource = "";
 try {
-  const saved = JSON.parse(localStorage.getItem("desvio-redirects") || "[]");
+  const saved = JSON.parse(
+    localStorage.getItem("desvio-redirects") || "[]",
+  );
   if (Array.isArray(saved)) {
     savedRedirects = saved.filter((item) =>
       typeof item?.source === "string" && typeof item?.url === "string"
@@ -120,7 +122,10 @@ form.addEventListener("submit", (event) => {
       ...savedRedirects.filter((item) => item.source !== result.source),
     ];
     try {
-      localStorage.setItem("desvio-redirects", JSON.stringify(savedRedirects));
+      localStorage.setItem(
+        "desvio-redirects",
+        JSON.stringify(savedRedirects),
+      );
     } catch {
       toast(
         "Configuração gerada. O navegador não permitiu salvar a lista local.",
@@ -186,10 +191,21 @@ const titles = {
   docs: "Como funciona",
   report: "Denunciar URL",
 };
+const paths = {
+  "/": "overview",
+  "/redirects/new": "builder",
+  "/analytics": "analytics",
+  "/docs": "docs",
+  "/report": "report",
+};
+const legacyPaths = Object.fromEntries(
+  Object.entries(paths).map(([path, page]) => [page, path]),
+);
+function currentPage() {
+  return paths[location.pathname] || "overview";
+}
 function navigate() {
-  const route = location.hash.slice(1) ||
-    (location.pathname === "/report" ? "report" : "overview");
-  const page = Object.hasOwn(titles, route) ? route : "overview";
+  const page = currentPage();
   for (const section of document.querySelectorAll(".view-section")) {
     section.hidden = page === "overview"
       ? !["overview", "builder"].includes(section.id)
@@ -197,6 +213,9 @@ function navigate() {
   }
   $("overview-note").hidden = !["overview", "builder"].includes(page);
   $("page-title").textContent = t(titles[page]);
+  document.title = `${t(titles[page])} · ${
+    document.querySelector(".brand").textContent.trim().replace(/\.$/, "")
+  }`;
   document.querySelectorAll("[data-page]").forEach((link) => {
     const active = link.dataset.page === page;
     link.classList.toggle("active", active);
@@ -207,7 +226,25 @@ function navigate() {
   if (page === "builder") $("source").focus({ preventScroll: true });
   if (page === "analytics") refreshAnalytics();
 }
-window.addEventListener("hashchange", navigate);
+document.addEventListener("click", (event) => {
+  const link = event.target.closest("a[href]");
+  if (
+    !link || event.defaultPrevented || event.button !== 0 || event.metaKey ||
+    event.ctrlKey || event.shiftKey || event.altKey || link.target ||
+    link.hasAttribute("download")
+  ) return;
+  const url = new URL(link.href);
+  if (
+    url.origin !== location.origin || !Object.hasOwn(paths, url.pathname) ||
+    url.hash
+  ) return;
+  event.preventDefault();
+  if (location.pathname !== url.pathname) {
+    history.pushState(null, "", url.pathname);
+  }
+  navigate();
+});
+window.addEventListener("popstate", navigate);
 
 const numberFormat = {
   format: (value) => new Intl.NumberFormat(locale()).format(value),
@@ -387,15 +424,20 @@ initLanguage(() => {
   if ($("form-error").dataset.message) {
     $("form-error").textContent = t($("form-error").dataset.message);
   }
-  const page = location.hash.slice(1) ||
-    (location.pathname === "/report" ? "report" : "overview");
+  const page = currentPage();
   $("page-title").textContent = t(titles[page] || titles.overview);
+  document.title = `${t(titles[page] || titles.overview)} · ${
+    document.querySelector(".brand").textContent.trim().replace(/\.$/, "")
+  }`;
   if ($("report-error").dataset.message) {
     $("report-error").textContent = t($("report-error").dataset.message);
   }
   syncSource();
   refreshAnalytics();
 });
+if (Object.hasOwn(legacyPaths, location.hash.slice(1))) {
+  history.replaceState(null, "", legacyPaths[location.hash.slice(1)]);
+}
 navigate();
 fetch("/healthz").then((response) => {
   if (response.ok) $("service-status").textContent = t("Serviço disponível");

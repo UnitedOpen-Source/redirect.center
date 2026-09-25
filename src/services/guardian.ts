@@ -5,7 +5,7 @@ interface GuardianData {
   denyFqdn: string[];
 }
 
-class GuardianService {
+export class GuardianService {
   private filepath: string;
   private denySet = new Set<string>();
 
