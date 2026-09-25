@@ -1,22 +1,39 @@
 import { Hono } from "hono";
+import { serveStatic } from "hono/deno";
+import {
+  AnalyticsService,
+  normalizeAnalyticsDomain,
+} from "./services/analytics.ts";
 import vento from "ventojs";
+import {
+  readReportBody,
+  ReportError,
+  ReportService,
+  validateReport,
+} from "./services/reports.ts";
 import { config } from "./config.ts";
 import { errorHandler } from "./middleware/error-handler.ts";
 import { guardian } from "./services/guardian.ts";
-import {
-  HttpError,
-  resolveDnsAndRedirect,
-} from "./services/redirect.ts";
+import { HttpError, resolveDnsAndRedirect } from "./services/redirect.ts";
 import { dnsCacheSize, dnsInflightSize } from "./helpers/dns.ts";
 
 const app = new Hono();
+await Deno.mkdir(".data", { recursive: true });
+const kv = await Deno.openKv(".data/analytics.sqlite");
+const analytics = new AnalyticsService(kv);
+const reports = new ReportService(kv);
+function recordRedirect(source: string, status: number) {
+  analytics.record(source, status).catch((error) =>
+    console.error("[analytics]", error)
+  );
+}
 
 // Pre-render homepage at startup (raw + gzip) to avoid per-request
 // template execution and CompressionStream allocations.
 const homepage = await (async () => {
   const env = vento({
     includes: new URL("../views", import.meta.url).pathname,
-    autoescape: false,
+    autoescape: true,
   });
   const template = await env.load("index.vto");
   const result = await template({ app: config });
@@ -37,7 +54,9 @@ app.onError(errorHandler);
 app.use("/", async (c, next) => {
   // remoteAddr = real TCP connection IP (can't be spoofed)
   // x-forwarded-for/x-real-ip are only trustworthy behind a reverse proxy
-  const ip = ((c.env as Record<string, unknown>)?.remoteAddr as Deno.NetAddr | undefined)?.hostname ||
+  const ip =
+    ((c.env as Record<string, unknown>)?.remoteAddr as Deno.NetAddr | undefined)
+      ?.hostname ||
     c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
     c.req.header("x-real-ip") ||
     "-";
@@ -66,25 +85,69 @@ app.use("/", async (c, next) => {
 });
 
 // Homepage - only for the FQDN host (served from pre-rendered cache)
-app.get("/", async (c, next) => {
+app.on("GET", ["/", "/report"], async (c, next) => {
   const host = (c.req.header("host") || "").split(":")[0];
 
   if (host === config.fqdn) {
     const ua = c.req.header("user-agent");
     if (!ua) return c.json({ statusCode: 403, message: "Forbidden" }, 403);
 
-    const acceptsGzip = c.req.header("accept-encoding")?.includes("gzip") ?? false;
+    const acceptsGzip = c.req.header("accept-encoding")?.includes("gzip") ??
+      false;
     const headers: Record<string, string> = {
       "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "public, max-age=300",
+      "Cache-Control": config.fqdn === "localhost"
+        ? "no-store"
+        : "public, max-age=300",
+      "Vary": "Accept-Encoding",
     };
     if (acceptsGzip) headers["Content-Encoding"] = "gzip";
 
-    return new Response(acceptsGzip ? homepage.gzip : homepage.html, { headers });
+    return new Response(acceptsGzip ? homepage.gzip : homepage.html, {
+      headers,
+    });
   }
 
   // If not FQDN, skip to redirect
   await next();
+});
+
+// Assets and aggregate analytics are served only on the service domain.
+app.use("/public/*", async (c, next) => {
+  if ((c.req.header("host") || "").split(":")[0] !== config.fqdn) return next();
+  return serveStatic({ root: "./" })(c, next);
+});
+
+app.get("/api/analytics", async (c, next) => {
+  if ((c.req.header("host") || "").split(":")[0] !== config.fqdn) return next();
+  c.header("Cache-Control", "no-store");
+  const domain = normalizeAnalyticsDomain(c.req.query("domain") || "");
+  if (!domain) {
+    return c.json({ error: "A valid source domain is required" }, 400);
+  }
+  return c.json(await analytics.overview(domain));
+});
+
+// Reports are queued privately for operator review; never fetch or auto-block their URL.
+app.post("/api/reports", async (c, next) => {
+  if ((c.req.header("host") || "").split(":")[0] !== config.fqdn) return next();
+  c.header("Cache-Control", "no-store");
+  if (
+    !c.req.header("content-type")?.toLowerCase().startsWith("application/json")
+  ) return c.json({ error: "unsupported_content_type" }, 415);
+  try {
+    const input = validateReport(await readReportBody(c.req.raw));
+    const client = ((c.env as Record<string, unknown>)?.remoteAddr as
+      | Deno.NetAddr
+      | undefined)?.hostname || "unknown";
+    return c.json(await reports.submit(input, client), 201);
+  } catch (error) {
+    if (error instanceof ReportError) {
+      if (error.status === 429) c.header("Retry-After", "3600");
+      return c.json({ error: error.code }, error.status);
+    }
+    throw error;
+  }
 });
 
 // Diagnostic endpoint — only accessible on the FQDN
@@ -142,7 +205,10 @@ async function handleRedirect(c: import("hono").Context): Promise<Response> {
   }
 
   // Resolve redirect
-  const redirect = await resolveDnsAndRedirect(host, c.req.url.replace(/^https?:\/\/[^/]+/, ""));
+  const redirect = await resolveDnsAndRedirect(
+    host,
+    c.req.url.replace(/^https?:\/\/[^/]+/, ""),
+  );
 
   // Destination guardian check
   if (guardian.isDenied(redirect.fqdn)) {
@@ -161,6 +227,8 @@ async function handleRedirect(c: import("hono").Context): Promise<Response> {
   } catch {
     safeLocation = encodeURI(redirect.url);
   }
+
+  recordRedirect(host, redirect.status);
 
   // Use " " instead of null to work around Deno.serve memory leak
   // See: https://github.com/denoland/deno/issues/27545
@@ -181,11 +249,19 @@ const RSS_LIMIT = Number(Deno.env.get("RSS_LIMIT_MB") || "384") * 1024 * 1024;
 setInterval(() => {
   const mem = Deno.memoryUsage();
   console.log(
-    `[health] rss=${(mem.rss / 1024 / 1024).toFixed(1)}MB heap=${(mem.heapUsed / 1024 / 1024).toFixed(1)}/${(mem.heapTotal / 1024 / 1024).toFixed(1)}MB external=${(mem.external / 1024 / 1024).toFixed(1)}MB dnsCache=${dnsCacheSize()} dnsInflight=${dnsInflightSize()}`,
+    `[health] rss=${(mem.rss / 1024 / 1024).toFixed(1)}MB heap=${
+      (mem.heapUsed / 1024 / 1024).toFixed(1)
+    }/${(mem.heapTotal / 1024 / 1024).toFixed(1)}MB external=${
+      (mem.external / 1024 / 1024).toFixed(1)
+    }MB dnsCache=${dnsCacheSize()} dnsInflight=${dnsInflightSize()}`,
   );
 
   if (mem.rss > RSS_LIMIT) {
-    console.warn(`[watchdog] RSS ${(mem.rss / 1024 / 1024).toFixed(0)}MB exceeded limit ${(RSS_LIMIT / 1024 / 1024).toFixed(0)}MB, restarting...`);
+    console.warn(
+      `[watchdog] RSS ${(mem.rss / 1024 / 1024).toFixed(0)}MB exceeded limit ${
+        (RSS_LIMIT / 1024 / 1024).toFixed(0)
+      }MB, restarting...`,
+    );
     Deno.exit(0);
   }
 }, 60_000);

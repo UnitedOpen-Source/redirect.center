@@ -1,4 +1,4 @@
-import psl from "psl";
+import * as psl from "psl";
 import { logger } from "../helpers/logger.ts";
 
 interface GuardianData {
