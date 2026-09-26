@@ -1,11 +1,12 @@
 # Desvio
 
 **Redirecione um domínio com DNS, sem manter uma aplicação para cada link.** O
-Desvio é a nova identidade do
-[redirect.center](https://github.com/UnitedOpen-Source/redirect.center): ele lê
-o CNAME configurado no seu provedor DNS e responde com um redirecionamento HTTP.
-A marca pode mudar sem alterar o domínio técnico `FQDN` nem os registros já
-publicados.
+Desvio é uma interface e extensão do
+[redirect.center original](https://github.com/udleinati/redirect.center),
+mantida neste [fork](https://github.com/UnitedOpen-Source/redirect.center): ela
+lê o CNAME configurado no seu provedor DNS e responde com um redirecionamento
+HTTP. O nome da interface é independente do domínio técnico `FQDN`: mudar a
+marca não exige trocar registros DNS já publicados.
 
 A interface gera os registros DNS, acrescenta parâmetros UTM, mostra os acessos
 **por domínio de origem** e permite denunciar URLs maliciosas. É gratuita, open
@@ -20,7 +21,7 @@ source e pode ser usada sem criar uma conta.
 1. O proprietário do domínio configura um registro **A** para o IP do serviço e
    um **CNAME** com o destino codificado no nome DNS. Um subdomínio também pode
    apontar diretamente para o CNAME gerado.
-2. Quando um visitante acessa a origem, o Desvio lê o CNAME e responde com HTTP
+2. Quando um visitante acessa a origem, o serviço lê o CNAME e responde com HTTP
    301, 302, 307 ou 308.
 3. O visitante chega ao destino. O gerador e o painel são ferramentas de
    configuração; o redirecionamento não depende de JavaScript.
@@ -40,6 +41,25 @@ os registros corretos para a configuração da instância.
 **HTTPS no destino** é definido por `.opts-https`. Para receber **HTTPS na
 origem**, use um proxy com certificado válido para o seu domínio; DNS não emite
 certificados.
+
+## Rotas
+
+As páginas e APIs ficam apenas no host definido em `FQDN`. Outros hosts sempre
+seguem o fluxo de redirecionamento, mesmo quando o caminho é `/docs` ou
+`/api/analytics`.
+
+| Caminho                   | Função                                   |
+| ------------------------- | ---------------------------------------- |
+| `/`                       | Visão geral                              |
+| `/redirects/new`          | Gerador de CNAME e UTM                   |
+| `/analytics`              | Acessos por domínio de origem            |
+| `/docs`                   | Guia e referência DNS                    |
+| `/report`                 | Denúncia de URL suspeita                 |
+| `/api/analytics?domain=…` | Contadores públicos da origem consultada |
+| `POST /api/reports`       | Recebimento de denúncias para revisão    |
+| `/healthz`                | Estado do processo                       |
+
+Links antigos como `/#builder` são encaminhados no navegador para a nova rota.
 
 ## O que a interface oferece
 
@@ -101,6 +121,7 @@ altera DNS externo automaticamente.
 - [Desenvolvimento, API de denúncias e publicação](docs/DEVELOPMENT.md)
 - [Visão geral da documentação](docs/README.md)
 - [Textos originais nos 12 idiomas](docs/LEGACY-CONTENT.md)
+- [Revisão das issues e PRs do projeto original](docs/HISTORY-REVIEW.md)
 
 ---
 
